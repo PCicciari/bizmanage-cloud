@@ -1,12 +1,40 @@
 
+import { useEffect, useState } from "react";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { supabase } from "@/lib/supabase";
+import { User } from "@supabase/supabase-js";
 
 const Index = () => {
-  // TODO: Add actual auth state management
-  const isAuthenticated = false;
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!isAuthenticated) {
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
         <AuthForm />
