@@ -1,4 +1,5 @@
 
+import { Link } from "react-router-dom";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { Building, LayoutDashboard, Package, Users } from "lucide-react";
 
@@ -22,13 +23,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               {navigation.map((item) => (
                 <SidebarMenuItem key={item.name}>
                   <SidebarMenuButton asChild>
-                    <a
-                      href={item.href}
+                    <Link
+                      to={item.href}
                       className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-muted rounded-md transition-colors"
                     >
                       <item.icon className="h-5 w-5" />
                       <span>{item.name}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
