@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -22,21 +21,26 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Package, Pencil, Trash, Plus } from "lucide-react";
+import { AlertCircle, Package, Pencil, Trash, Plus, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { InventoryItem } from "@/types/database.types";
 import { useToast } from "@/hooks/use-toast";
+
+const LOW_STOCK_THRESHOLD = 10; // Items below this quantity are considered low stock
 
 const InventoryPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [stockFilter, setStockFilter] = useState<"all" | "low">("all");
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     quantity: "",
     price: "",
+    reorder_point: "",
   });
 
   const { data: items, isLoading } = useQuery({
@@ -48,8 +52,28 @@ const InventoryPage = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
+      
+      // Check for low stock items and show notifications
+      data?.forEach(item => {
+        if (item.quantity <= LOW_STOCK_THRESHOLD) {
+          toast({
+            title: "Low Stock Alert",
+            description: `${item.name} is running low (${item.quantity} remaining)`,
+            variant: "destructive",
+          });
+        }
+      });
+
       return data;
     },
+  });
+
+  const filteredItems = items?.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStockFilter = stockFilter === "all" || 
+      (stockFilter === "low" && item.quantity <= LOW_STOCK_THRESHOLD);
+    return matchesSearch && matchesStockFilter;
   });
 
   const createMutation = useMutation({
@@ -110,6 +134,7 @@ const InventoryPage = () => {
       ...formData,
       quantity: Number(formData.quantity),
       price: Number(formData.price),
+      reorder_point: Number(formData.reorder_point),
     };
 
     if (editingItem) {
@@ -126,6 +151,7 @@ const InventoryPage = () => {
       description: item.description,
       quantity: item.quantity.toString(),
       price: item.price.toString(),
+      reorder_point: item.reorder_point.toString(),
     });
     setIsOpen(true);
   };
@@ -138,6 +164,7 @@ const InventoryPage = () => {
       description: "",
       quantity: "",
       price: "",
+      reorder_point: "",
     });
   };
 
@@ -224,6 +251,22 @@ const InventoryPage = () => {
                     />
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reorder_point">Reorder Point</Label>
+                  <Input
+                    id="reorder_point"
+                    type="number"
+                    min="0"
+                    value={formData.reorder_point}
+                    onChange={(e) =>
+                      setFormData({ ...formData, reorder_point: e.target.value })
+                    }
+                    required
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Set the quantity at which you want to be notified to reorder
+                  </p>
+                </div>
                 <DialogFooter>
                   <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
                     {editingItem ? "Update" : "Create"}
@@ -233,9 +276,29 @@ const InventoryPage = () => {
             </DialogContent>
           </Dialog>
         </div>
+
+        <div className="flex gap-4 items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              className="pl-10"
+              placeholder="Search items..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Button
+            variant={stockFilter === "low" ? "destructive" : "outline"}
+            onClick={() => setStockFilter(stockFilter === "low" ? "all" : "low")}
+          >
+            <AlertCircle className="mr-2 h-4 w-4" />
+            {stockFilter === "low" ? "Show All" : "Low Stock"}
+          </Button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {items?.map((item: InventoryItem) => (
-            <Card key={item.id}>
+          {filteredItems?.map((item: InventoryItem) => (
+            <Card key={item.id} className={item.quantity <= LOW_STOCK_THRESHOLD ? "border-red-500" : ""}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
@@ -245,12 +308,24 @@ const InventoryPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <p className="text-sm text-gray-600">
-                    Quantity: {item.quantity}
-                  </p>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-gray-600">
+                      Quantity: {item.quantity}
+                    </p>
+                    {item.quantity <= LOW_STOCK_THRESHOLD && (
+                      <span className="text-xs font-medium bg-red-100 text-red-800 px-2 py-1 rounded">
+                        Low Stock
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-600">
                     Price: ${item.price.toFixed(2)}
                   </p>
+                  {item.reorder_point && (
+                    <p className="text-sm text-gray-600">
+                      Reorder Point: {item.reorder_point}
+                    </p>
+                  )}
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end space-x-2">
