@@ -3,7 +3,7 @@ import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarMenuItem
 import { Building, LayoutDashboard, Package, Users } from "lucide-react";
 
 const navigation = [
-  { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+  { name: "Dashboard", icon: LayoutDashboard, href: "/" },
   { name: "Employees", icon: Users, href: "/employees" },
   { name: "Inventory", icon: Package, href: "/inventory" },
   { name: "Branches", icon: Building, href: "/branches" },
