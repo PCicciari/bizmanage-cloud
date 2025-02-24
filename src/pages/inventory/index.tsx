@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -21,12 +22,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, Package, Pencil, Trash, Plus, Search } from "lucide-react";
+import { AlertCircle, Package, Pencil, Trash, Plus, Search, Building } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { InventoryItem } from "@/types/database.types";
+import { InventoryItem, Branch } from "@/types/database.types";
 import { useToast } from "@/hooks/use-toast";
 
-const LOW_STOCK_THRESHOLD = 10; // Items below this quantity are considered low stock
+const LOW_STOCK_THRESHOLD = 10;
 
 const InventoryPage = () => {
   const { toast } = useToast();
@@ -35,25 +36,32 @@ const InventoryPage = () => {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [stockFilter, setStockFilter] = useState<"all" | "low">("all");
+  const [selectedBranch, setSelectedBranch] = useState<string>("");
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     quantity: "",
     price: "",
     reorder_point: "",
+    branch_id: "",
   });
 
   const { data: items, isLoading } = useQuery({
-    queryKey: ["inventory"],
+    queryKey: ["inventory", selectedBranch],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("inventory")
         .select("*")
         .order("created_at", { ascending: false });
 
+      if (selectedBranch) {
+        query = query.eq("branch_id", selectedBranch);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
       
-      // Check for low stock items and show notifications
       data?.forEach(item => {
         if (item.quantity <= LOW_STOCK_THRESHOLD) {
           toast({
@@ -68,6 +76,19 @@ const InventoryPage = () => {
     },
   });
 
+  const { data: branches } = useQuery({
+    queryKey: ["branches"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("branches")
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const filteredItems = items?.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -77,10 +98,10 @@ const InventoryPage = () => {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (newItem: Omit<InventoryItem, "id" | "created_at" | "branch_id">) => {
+    mutationFn: async (newItem: Omit<InventoryItem, "id" | "created_at">) => {
       const { data, error } = await supabase
         .from("inventory")
-        .insert([{ ...newItem, branch_id: "default" }])
+        .insert([newItem])
         .select()
         .single();
 
@@ -135,6 +156,7 @@ const InventoryPage = () => {
       quantity: Number(formData.quantity),
       price: Number(formData.price),
       reorder_point: Number(formData.reorder_point),
+      branch_id: formData.branch_id,
     };
 
     if (editingItem) {
@@ -152,6 +174,7 @@ const InventoryPage = () => {
       quantity: item.quantity.toString(),
       price: item.price.toString(),
       reorder_point: item.reorder_point.toString(),
+      branch_id: item.branch_id,
     });
     setIsOpen(true);
   };
@@ -165,7 +188,13 @@ const InventoryPage = () => {
       quantity: "",
       price: "",
       reorder_point: "",
+      branch_id: "",
     });
+  };
+
+  const getBranchName = (branchId: string) => {
+    const branch = branches?.find((b: Branch) => b.id === branchId);
+    return branch?.name || "Unknown Branch";
   };
 
   if (isLoading) {
@@ -263,9 +292,25 @@ const InventoryPage = () => {
                     }
                     required
                   />
-                  <p className="text-sm text-muted-foreground">
-                    Set the quantity at which you want to be notified to reorder
-                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="branch">Branch</Label>
+                  <select
+                    id="branch"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                    value={formData.branch_id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, branch_id: e.target.value })
+                    }
+                    required
+                  >
+                    <option value="">Select a branch</option>
+                    {branches?.map((branch: Branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <DialogFooter>
                   <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
@@ -287,6 +332,18 @@ const InventoryPage = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          <select
+            className="rounded-md border border-input bg-background px-3 py-2"
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+          >
+            <option value="">All Branches</option>
+            {branches?.map((branch: Branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
           <Button
             variant={stockFilter === "low" ? "destructive" : "outline"}
             onClick={() => setStockFilter(stockFilter === "low" ? "all" : "low")}
@@ -297,7 +354,7 @@ const InventoryPage = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredItems?.map((item: InventoryItem) => (
+          {items?.map((item: InventoryItem) => (
             <Card key={item.id} className={item.quantity <= LOW_STOCK_THRESHOLD ? "border-red-500" : ""}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -321,11 +378,13 @@ const InventoryPage = () => {
                   <p className="text-sm text-gray-600">
                     Price: ${item.price.toFixed(2)}
                   </p>
-                  {item.reorder_point && (
-                    <p className="text-sm text-gray-600">
-                      Reorder Point: {item.reorder_point}
-                    </p>
-                  )}
+                  <p className="text-sm text-gray-600">
+                    Reorder Point: {item.reorder_point}
+                  </p>
+                  <p className="text-sm text-gray-600 flex items-center gap-2">
+                    <Building className="h-4 w-4" />
+                    {getBranchName(item.branch_id)}
+                  </p>
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end space-x-2">
