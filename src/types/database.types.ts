@@ -18,6 +18,7 @@ export interface InventoryItem {
   quantity: number;
   price: number;
   branch_id: string;
+  reorder_point: number;
 }
 
 export interface Branch {
