@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -22,10 +21,17 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building, MapPin, Phone, UserCircle2, Pencil, Trash, Plus } from "lucide-react";
+import { Building, MapPin, Phone, UserCircle2, Pencil, Trash, Plus, Package, DollarSign } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { Branch, Employee } from "@/types/database.types";
+import { Branch, Employee, InventoryItem } from "@/types/database.types";
 import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
+
+interface BranchStatistics {
+  employeeCount: number;
+  inventoryItemCount: number;
+  totalInventoryValue: number;
+}
 
 const BranchesPage = () => {
   const { toast } = useToast();
@@ -63,6 +69,33 @@ const BranchesPage = () => {
       return data;
     },
   });
+
+  const { data: inventory } = useQuery({
+    queryKey: ["inventory"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inventory")
+        .select("*");
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const getBranchStatistics = (branchId: string): BranchStatistics => {
+    const branchEmployees = employees?.filter((emp: Employee) => emp.branch_id === branchId) || [];
+    const branchInventory = inventory?.filter((item: InventoryItem) => item.branch_id === branchId) || [];
+    
+    const totalValue = branchInventory.reduce((sum, item) => {
+      return sum + (item.price * item.quantity);
+    }, 0);
+
+    return {
+      employeeCount: branchEmployees.length,
+      inventoryItemCount: branchInventory.length,
+      totalInventoryValue: totalValue,
+    };
+  };
 
   const createMutation = useMutation({
     mutationFn: async (newBranch: Omit<Branch, "id" | "created_at">) => {
@@ -248,48 +281,69 @@ const BranchesPage = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {branches?.map((branch: Branch) => (
-            <Card key={branch.id}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building className="h-5 w-5" />
-                  {branch.name}
-                </CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  {branch.address}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <p className="text-sm text-gray-600 flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    {branch.phone}
-                  </p>
-                  <p className="text-sm text-gray-600 flex items-center gap-2">
-                    <UserCircle2 className="h-4 w-4" />
-                    Manager: {getManagerName(branch.manager_id)}
-                  </p>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-end space-x-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleEdit(branch)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  onClick={() => deleteMutation.mutate(branch.id)}
-                >
-                  <Trash className="h-4 w-4" />
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+          {branches?.map((branch: Branch) => {
+            const stats = getBranchStatistics(branch.id);
+            return (
+              <Card key={branch.id}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building className="h-5 w-5" />
+                    {branch.name}
+                  </CardTitle>
+                  <CardDescription className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    {branch.address}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        {branch.phone}
+                      </p>
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <UserCircle2 className="h-4 w-4" />
+                        Manager: {getManagerName(branch.manager_id)}
+                      </p>
+                    </div>
+                    <Separator />
+                    <div className="space-y-2 pt-2">
+                      <h4 className="text-sm font-medium">Branch Statistics</h4>
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <UserCircle2 className="h-4 w-4" />
+                        Employees: {stats.employeeCount}
+                      </p>
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <Package className="h-4 w-4" />
+                        Inventory Items: {stats.inventoryItemCount}
+                      </p>
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        Total Inventory Value: ${stats.totalInventoryValue.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleEdit(branch)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => deleteMutation.mutate(branch.id)}
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </DashboardLayout>
