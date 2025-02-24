@@ -5,11 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"admin" | "branch_manager">("branch_manager");
+  const [branchId, setBranchId] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -29,16 +33,27 @@ export function AuthForm() {
           description: "You have successfully signed in.",
         });
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              role: 'user', // Default role for new users
-            },
-          },
         });
-        if (error) throw error;
+
+        if (authError) throw authError;
+
+        if (authData.user) {
+          const { error: profileError } = await supabase
+            .from("user_profiles")
+            .insert([
+              {
+                id: authData.user.id,
+                role,
+                ...(role === "branch_manager" ? { branch_id: branchId } : {}),
+              },
+            ]);
+
+          if (profileError) throw profileError;
+        }
+
         toast({
           title: "Account created!",
           description: "Please check your email to confirm your account.",
@@ -84,6 +99,41 @@ export function AuthForm() {
               disabled={loading}
             />
           </div>
+          {!isLogin && (
+            <div className="space-y-4">
+              <div>
+                <Label>Select Role</Label>
+                <RadioGroup
+                  value={role}
+                  onValueChange={(value: "admin" | "branch_manager") =>
+                    setRole(value)
+                  }
+                  className="flex flex-col space-y-2 mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="admin" id="admin" />
+                    <Label htmlFor="admin">Admin</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="branch_manager" id="branch_manager" />
+                    <Label htmlFor="branch_manager">Branch Manager</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              {role === "branch_manager" && (
+                <div className="space-y-2">
+                  <Label>Branch ID</Label>
+                  <Input
+                    placeholder="Enter Branch ID"
+                    value={branchId}
+                    onChange={(e) => setBranchId(e.target.value)}
+                    disabled={loading}
+                    required
+                  />
+                </div>
+              )}
+            </div>
+          )}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Please wait..." : isLogin ? "Sign In" : "Sign Up"}
           </Button>

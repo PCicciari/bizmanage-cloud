@@ -40,6 +40,12 @@ export interface Sale {
   branch_id: string;
 }
 
+export interface UserProfile {
+  id: string;
+  role: 'admin' | 'branch_manager';
+  branch_id?: string; // Only for branch managers
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -63,6 +69,12 @@ export interface Database {
         Insert: Omit<Sale, 'id' | 'created_at'>;
         Update: Partial<Omit<Sale, 'id' | 'created_at'>>;
       };
+      user_profiles: {
+        Row: UserProfile;
+        Insert: Omit<UserProfile, 'id'>;
+        Update: Partial<Omit<UserProfile, 'id'>>;
+      };
     };
   };
 }
+
