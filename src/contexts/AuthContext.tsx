@@ -28,21 +28,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      } else {
+    console.log("AuthContext: Initializing");
+    
+    const initializeAuth = async () => {
+      try {
+        // Check active session
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log("AuthContext: Session check", { session });
+        
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("AuthContext: Error during initialization", error);
         setLoading(false);
       }
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log("AuthContext: Auth state changed", { session });
       setUser(session?.user ?? null);
+      
       if (session?.user) {
         await fetchUserProfile(session.user.id);
       } else {
@@ -55,18 +70,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
+    try {
+      console.log("AuthContext: Fetching user profile", { userId });
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
 
-    if (error) {
-      console.error("Error fetching user profile:", error);
-    } else {
+      if (error) {
+        throw error;
+      }
+
+      console.log("AuthContext: User profile fetched", { data });
       setUserProfile(data);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      setUserProfile(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const value = {
@@ -77,6 +100,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isBranchManager: userProfile?.role === "branch_manager",
     branchId: userProfile?.branch_id ?? null,
   };
+
+  console.log("AuthContext: Current state", value);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
