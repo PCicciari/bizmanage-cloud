@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -35,6 +34,7 @@ interface BranchStatistics {
 }
 
 const BranchesPage = () => {
+  console.log("Rendering BranchesPage");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
@@ -46,41 +46,68 @@ const BranchesPage = () => {
     manager_id: "",
   });
 
-  const { data: branches, isLoading: branchesLoading } = useQuery({
+  const { data: branches, isLoading: branchesLoading, error: branchesError } = useQuery({
     queryKey: ["branches"],
     queryFn: async () => {
+      console.log("Fetching branches...");
       const { data, error } = await supabase
         .from("branches")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching branches:", error);
+        throw error;
+      }
+      console.log("Branches fetched:", data);
       return data;
     },
   });
 
-  const { data: employees } = useQuery({
+  const { data: employees, error: employeesError } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
+      console.log("Fetching employees...");
       const { data, error } = await supabase
         .from("employees")
         .select("*");
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching employees:", error);
+        throw error;
+      }
+      console.log("Employees fetched:", data);
       return data;
     },
   });
 
-  const { data: inventory } = useQuery({
+  const { data: inventory, error: inventoryError } = useQuery({
     queryKey: ["inventory"],
     queryFn: async () => {
+      console.log("Fetching inventory...");
       const { data, error } = await supabase
         .from("inventory")
         .select("*");
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching inventory:", error);
+        throw error;
+      }
+      console.log("Inventory fetched:", data);
       return data;
     },
+  });
+
+  if (branchesError) console.error("Branches error:", branchesError);
+  if (employeesError) console.error("Employees error:", employeesError);
+  if (inventoryError) console.error("Inventory error:", inventoryError);
+
+  console.log("Current state:", {
+    branchesLoading,
+    hasBranches: Boolean(branches),
+    branchesCount: branches?.length,
+    hasEmployees: Boolean(employees),
+    hasInventory: Boolean(inventory)
   });
 
   const getBranchStatistics = (branchId: string): BranchStatistics => {
@@ -187,11 +214,22 @@ const BranchesPage = () => {
     return manager ? `${manager.first_name} ${manager.last_name}` : "Not assigned";
   };
 
+  if (branchesError || employeesError || inventoryError) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <h2 className="text-3xl font-semibold text-red-600">Error loading data</h2>
+          <p className="text-gray-600">Please try refreshing the page.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (branchesLoading) {
     return (
       <DashboardLayout>
         <div className="space-y-6">
-          <h2 className="text-3xl font-semibold">Loading...</h2>
+          <h2 className="text-3xl font-semibold">Loading branches...</h2>
         </div>
       </DashboardLayout>
     );
