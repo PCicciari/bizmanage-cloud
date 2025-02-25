@@ -84,4 +84,27 @@ export function BranchForm({
           <Label htmlFor="manager">Branch Manager</Label>
           <select
             id="manager"
-            className="w-full rounded-md border border-input
+            className="w-full rounded-md border border-input bg-background px-3 py-2"
+            value={formData.manager_id}
+            onChange={(e) =>
+              setFormData({ ...formData, manager_id: e.target.value })
+            }
+            required
+          >
+            <option value="">Select a manager</option>
+            {employees?.map((employee) => (
+              <option key={employee.id} value={employee.id}>
+                {employee.first_name} {employee.last_name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <DialogFooter>
+          <Button type="submit" disabled={isLoading}>
+            {editingBranch ? "Update" : "Create"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
+  );
+}
