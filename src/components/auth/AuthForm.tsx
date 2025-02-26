@@ -17,6 +17,33 @@ export function AuthForm() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  const createUserProfile = async (userId: string, role: "admin" | "branch_manager", branchId?: string) => {
+    try {
+      // First create the user_profiles table if it doesn't exist
+      const { error: createTableError } = await supabase.rpc('create_user_profiles_if_not_exists');
+      if (createTableError) {
+        console.error("Error creating table:", createTableError);
+        // Continue anyway as the table might already exist
+      }
+
+      // Then create the user profile
+      const { error: profileError } = await supabase
+        .from("user_profiles")
+        .insert([
+          {
+            id: userId,
+            role,
+            ...(role === "branch_manager" ? { branch_id: branchId } : {}),
+          },
+        ]);
+
+      if (profileError) throw profileError;
+    } catch (error: any) {
+      console.error("Error creating user profile:", error);
+      throw new Error("Failed to create user profile. Please contact support.");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -40,19 +67,15 @@ export function AuthForm() {
 
         if (authError) throw authError;
 
-        if (authData.user) {
-          const { error: profileError } = await supabase
-            .from("user_profiles")
-            .insert([
-              {
-                id: authData.user.id,
-                role,
-                ...(role === "branch_manager" ? { branch_id: branchId } : {}),
-              },
-            ]);
-
-          if (profileError) throw profileError;
+        if (!authData.user) {
+          throw new Error("Failed to create user account.");
         }
+
+        await createUserProfile(
+          authData.user.id, 
+          role, 
+          role === "branch_manager" ? branchId : undefined
+        );
 
         toast({
           title: "Account created!",
@@ -60,6 +83,7 @@ export function AuthForm() {
         });
       }
     } catch (error: any) {
+      console.error("Authentication error:", error);
       toast({
         title: "Error",
         description: error.message,
