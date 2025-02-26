@@ -28,6 +28,7 @@ export interface Branch {
   address: string;
   phone: string;
   manager_id: string;
+  branch_code: string; // Add this new field
 }
 
 export interface Sale {
@@ -43,7 +44,7 @@ export interface Sale {
 export interface UserProfile {
   id: string;
   role: 'admin' | 'branch_manager';
-  branch_id?: string; // Only for branch managers
+  branch_id?: string; // This will now store the branch_code instead of UUID
 }
 
 export interface Database {
@@ -77,4 +78,3 @@ export interface Database {
     };
   };
 }
-

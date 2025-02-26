@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,34 +12,43 @@ export function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"admin" | "branch_manager">("branch_manager");
-  const [branchId, setBranchId] = useState("");
+  const [branchCode, setBranchCode] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const createUserProfile = async (userId: string, role: "admin" | "branch_manager", branchId?: string) => {
+  const createUserProfile = async (userId: string, role: "admin" | "branch_manager", branchCode?: string) => {
     try {
-      // First create the user_profiles table if it doesn't exist
       const { error: createTableError } = await supabase.rpc('create_user_profiles_if_not_exists');
       if (createTableError) {
         console.error("Error creating table:", createTableError);
-        // Continue anyway as the table might already exist
       }
 
-      // Then create the user profile
+      if (branchCode) {
+        const { data: branchExists, error: branchError } = await supabase
+          .from("branches")
+          .select("branch_code")
+          .eq("branch_code", branchCode)
+          .single();
+
+        if (branchError || !branchExists) {
+          throw new Error("Invalid branch code. Please check and try again.");
+        }
+      }
+
       const { error: profileError } = await supabase
         .from("user_profiles")
         .insert([
           {
             id: userId,
             role,
-            ...(role === "branch_manager" ? { branch_id: branchId } : {}),
+            ...(role === "branch_manager" ? { branch_id: branchCode } : {}),
           },
         ]);
 
       if (profileError) throw profileError;
     } catch (error: any) {
       console.error("Error creating user profile:", error);
-      throw new Error("Failed to create user profile. Please contact support.");
+      throw new Error(error.message || "Failed to create user profile. Please contact support.");
     }
   };
 
@@ -74,7 +82,7 @@ export function AuthForm() {
         await createUserProfile(
           authData.user.id, 
           role, 
-          role === "branch_manager" ? branchId : undefined
+          role === "branch_manager" ? branchCode : undefined
         );
 
         toast({
@@ -146,14 +154,18 @@ export function AuthForm() {
               </div>
               {role === "branch_manager" && (
                 <div className="space-y-2">
-                  <Label>Branch ID</Label>
+                  <Label>Branch Code</Label>
                   <Input
-                    placeholder="Enter Branch ID"
-                    value={branchId}
-                    onChange={(e) => setBranchId(e.target.value)}
+                    placeholder="Enter Branch Code (e.g., NYC01)"
+                    value={branchCode}
+                    onChange={(e) => setBranchCode(e.target.value.toUpperCase())}
+                    maxLength={6}
                     disabled={loading}
                     required
                   />
+                  <p className="text-xs text-gray-500">
+                    Enter the branch code provided by your administrator
+                  </p>
                 </div>
               )}
             </div>

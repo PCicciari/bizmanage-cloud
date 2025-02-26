@@ -47,6 +47,7 @@ const BranchesPage = () => {
     address: "",
     phone: "",
     manager_id: "",
+    branch_code: "",
   });
 
   const { data: branches, isLoading: branchesLoading, error: branchesError } = useQuery({
@@ -151,6 +152,11 @@ const BranchesPage = () => {
 
   const createMutation = useMutation({
     mutationFn: async (newBranch: Omit<Branch, "id" | "created_at">) => {
+      const branchCodeRegex = /^[A-Z0-9]{3,6}$/;
+      if (!branchCodeRegex.test(newBranch.branch_code)) {
+        throw new Error("Branch code must be 3-6 characters long and contain only uppercase letters and numbers");
+      }
+
       const { data, error } = await supabase
         .from("branches")
         .insert([newBranch])
@@ -218,6 +224,7 @@ const BranchesPage = () => {
       address: branch.address,
       phone: branch.phone,
       manager_id: branch.manager_id,
+      branch_code: branch.branch_code,
     });
     setIsOpen(true);
   };
@@ -230,6 +237,7 @@ const BranchesPage = () => {
       address: "",
       phone: "",
       manager_id: "",
+      branch_code: "",
     });
   };
 
@@ -281,6 +289,22 @@ const BranchesPage = () => {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="branch_code">Branch Code</Label>
+                  <Input
+                    id="branch_code"
+                    value={formData.branch_code}
+                    onChange={(e) =>
+                      setFormData({ ...formData, branch_code: e.target.value.toUpperCase() })
+                    }
+                    placeholder="e.g., NYC01"
+                    maxLength={6}
+                    required
+                  />
+                  <p className="text-xs text-gray-500">
+                    3-6 characters, uppercase letters and numbers only
+                  </p>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="name">Branch Name</Label>
                   <Input
