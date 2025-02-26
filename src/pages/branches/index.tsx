@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { AuthForm } from "@/components/auth/AuthForm";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Card,
   CardContent,
@@ -35,6 +37,7 @@ interface BranchStatistics {
 
 const BranchesPage = () => {
   console.log("Rendering BranchesPage");
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
@@ -62,6 +65,7 @@ const BranchesPage = () => {
       console.log("Branches fetched:", data);
       return data;
     },
+    enabled: !!user,
   });
 
   const { data: employees, error: employeesError } = useQuery({
@@ -79,6 +83,7 @@ const BranchesPage = () => {
       console.log("Employees fetched:", data);
       return data;
     },
+    enabled: !!user,
   });
 
   const { data: inventory, error: inventoryError } = useQuery({
@@ -96,7 +101,26 @@ const BranchesPage = () => {
       console.log("Inventory fetched:", data);
       return data;
     },
+    enabled: !!user,
   });
+
+  if (authLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <h2 className="text-3xl font-semibold">Loading...</h2>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <AuthForm />
+      </div>
+    );
+  }
 
   if (branchesError) console.error("Branches error:", branchesError);
   if (employeesError) console.error("Employees error:", employeesError);
