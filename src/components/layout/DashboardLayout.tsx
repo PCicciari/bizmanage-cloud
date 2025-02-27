@@ -5,15 +5,26 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { Building, LayoutDashboard, Package, Users, LogOut } from "lucide-react";
 
-const navigation = [
-  { name: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { name: "Employees", icon: Users, href: "/employees" },
-  { name: "Inventory", icon: Package, href: "/inventory" },
-  { name: "Branches", icon: Building, href: "/branches" },
-];
+const getNavigation = (isAdmin: boolean) => {
+  const baseNavigation = [
+    { name: "Dashboard", icon: LayoutDashboard, href: "/" },
+  ];
+
+  if (isAdmin) {
+    return [
+      ...baseNavigation,
+      { name: "Employees", icon: Users, href: "/employees" },
+      { name: "Inventory", icon: Package, href: "/inventory" },
+      { name: "Branches", icon: Building, href: "/branches" },
+    ];
+  }
+
+  return baseNavigation;
+};
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { logout } = useAuth();
+  const { logout, isAdmin, loading } = useAuth();
+  const navigation = getNavigation(isAdmin);
   
   return (
     <SidebarProvider>
@@ -27,7 +38,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <LogOut className="h-4 w-4" />
                 </Button>
               </div>
-              {navigation.map((item) => (
+              {!loading && navigation.map((item) => (
                 <SidebarMenuItem key={item.name}>
                   <SidebarMenuButton asChild>
                     <Link
