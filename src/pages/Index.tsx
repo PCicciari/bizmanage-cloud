@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -228,16 +229,6 @@ const BranchManagerDashboard = ({ branchId }: { branchId: string }) => {
     },
   });
 
-  const { data: tasks } = useQuery({
-    queryKey: ["branch-tasks", branchId],
-    queryFn: async () => {
-      return [
-        { id: 1, title: "Review Inventory", time: "2:00 PM", status: "pending" },
-        { id: 2, title: "Staff Meeting", time: "4:00 PM", status: "scheduled" },
-      ];
-    },
-  });
-
   const today = new Date();
   const todaySales = branchSales?.filter(sale => {
     const saleDate = new Date(sale.created_at);
@@ -278,17 +269,32 @@ const BranchManagerDashboard = ({ branchId }: { branchId: string }) => {
         <Card className="p-6 rounded-2xl">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Today's Tasks</h3>
           <div className="space-y-4">
-            {tasks?.map((task) => (
-              <div key={task.id} className="flex justify-between items-center p-4 bg-muted rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className={`h-2 w-2 rounded-full ${
-                    task.status === "pending" ? "bg-warning" : "bg-success"
-                  }`}></div>
-                  <p className="font-medium">{task.title}</p>
-                </div>
-                <p className="text-sm text-gray-500">{task.time}</p>
+            {branchSales?.length === 0 && branchInventory?.length === 0 ? (
+              <div className="p-4 bg-muted rounded-lg text-center">
+                <p className="text-gray-500">No tasks yet for today</p>
               </div>
-            ))}
+            ) : (
+              <>
+                {branchSales && branchSales.length > 0 && (
+                  <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-warning"></div>
+                      <p className="font-medium">Review Today's Sales</p>
+                    </div>
+                    <p className="text-sm text-gray-500">Today</p>
+                  </div>
+                )}
+                {branchInventory && branchInventory.length > 0 && (
+                  <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-success"></div>
+                      <p className="font-medium">Check Inventory Levels</p>
+                    </div>
+                    <p className="text-sm text-gray-500">Today</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </Card>
 
@@ -309,18 +315,24 @@ const BranchManagerDashboard = ({ branchId }: { branchId: string }) => {
                 ></div>
               </div>
             </div>
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">Customer Satisfaction</span>
-                <span className="text-sm font-medium">{customerSatisfaction}%</span>
+            
+            {/* Top selling inventory items section */}
+            {branchInventory && branchInventory.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2">Top Inventory Items</h4>
+                <div className="space-y-2">
+                  {branchInventory
+                    .sort((a, b) => b.quantity - a.quantity)
+                    .slice(0, 3)
+                    .map((item) => (
+                      <div key={item.id} className="flex justify-between text-sm">
+                        <span>{item.name}</span>
+                        <span>{item.quantity} units</span>
+                      </div>
+                    ))}
+                </div>
               </div>
-              <div className="h-2 bg-muted rounded-full">
-                <div
-                  className="h-2 bg-primary rounded-full"
-                  style={{ width: `${customerSatisfaction}%` }}
-                ></div>
-              </div>
-            </div>
+            )}
           </div>
         </Card>
       </div>
