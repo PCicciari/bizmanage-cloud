@@ -16,12 +16,15 @@ const navigation = [
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { logout, isAdmin, loading } = useAuth();
   
-  // Filter navigation items based on user role
-  const filteredNavigation = loading 
-    ? navigation 
-    : isAdmin 
-      ? navigation 
-      : navigation.filter(item => item.name === "Dashboard");
+  console.log("DashboardLayout rendering", { isAdmin, loading });
+  
+  // Always show navigation while we're loading, then filter based on role
+  const filteredNavigation = navigation.filter(item => {
+    // During loading or for admins, show all items
+    if (loading || isAdmin) return true;
+    // Non-admins only see Dashboard
+    return item.name === "Dashboard";
+  });
   
   return (
     <SidebarProvider>
@@ -36,30 +39,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </Button>
               </div>
               
-              {loading ? (
-                // Show skeletons while loading
-                <>
-                  <SidebarMenuSkeleton showIcon />
-                  <SidebarMenuSkeleton showIcon />
-                  <SidebarMenuSkeleton showIcon />
-                  <SidebarMenuSkeleton showIcon />
-                </>
-              ) : (
-                // Show actual menu items once loaded
-                filteredNavigation.map((item) => (
-                  <SidebarMenuItem key={item.name}>
-                    <SidebarMenuButton asChild>
-                      <Link
-                        to={item.href}
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-muted rounded-md transition-colors"
-                      >
-                        <item.icon className="h-5 w-5" />
-                        <span>{item.name}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))
-              )}
+              {/* Always show menu items, with loading indicators if needed */}
+              {filteredNavigation.map((item) => (
+                <SidebarMenuItem key={item.name}>
+                  <SidebarMenuButton asChild>
+                    <Link
+                      to={item.href}
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-muted rounded-md transition-colors"
+                    >
+                      <item.icon className="h-5 w-5" />
+                      <span>{item.name}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarGroup>
           </SidebarContent>
         </Sidebar>
