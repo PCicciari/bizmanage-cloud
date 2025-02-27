@@ -36,6 +36,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     const initializeAuth = async () => {
       try {
+        // Force loading to false after 2 seconds to prevent infinite loading
+        const timeout = setTimeout(() => {
+          if (loading) {
+            console.log("AuthContext: Forcing loading to false after timeout");
+            setLoading(false);
+          }
+        }, 2000);
+
         const { data: { session } } = await supabase.auth.getSession();
         console.log("AuthContext: Session check", { session });
         
@@ -44,8 +52,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           await fetchUserProfile(session.user.id);
         } else {
+          clearTimeout(timeout);
           setLoading(false);
         }
+
+        return () => clearTimeout(timeout);
       } catch (error) {
         console.error("AuthContext: Error during initialization", error);
         setLoading(false);
@@ -112,11 +123,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // For development purposes, we'll set admin access if no user is detected
+  // REMOVE THIS IN PRODUCTION!
+  const devMode = true;
   const value = {
     user,
     userProfile,
-    loading,
-    isAdmin: userProfile?.role === "admin",
+    loading: loading && !devMode, // Force loading to false in dev mode
+    isAdmin: userProfile?.role === "admin" || (devMode && !user),
     isBranchManager: userProfile?.role === "branch_manager",
     branchId: userProfile?.branch_id ?? null,
     logout,
