@@ -109,6 +109,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
+      // Clear user and userProfile state to trigger the redirect to login screen
+      setUser(null);
+      setUserProfile(null);
+      
       toast({
         title: "Logged out successfully",
         description: "You have been signed out of your account.",
