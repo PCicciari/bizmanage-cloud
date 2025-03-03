@@ -105,6 +105,14 @@ const BranchesPage = () => {
     enabled: !!user,
   });
 
+  if (!user && !authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <AuthForm />
+      </div>
+    );
+  }
+
   if (authLoading) {
     return (
       <DashboardLayout>
@@ -112,14 +120,6 @@ const BranchesPage = () => {
           <h2 className="text-3xl font-semibold">Loading...</h2>
         </div>
       </DashboardLayout>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <AuthForm />
-      </div>
     );
   }
 

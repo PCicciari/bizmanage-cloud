@@ -10,6 +10,7 @@ import EmployeesPage from "./pages/employees";
 import InventoryPage from "./pages/inventory";
 import BranchesPage from "./pages/branches";
 import NotFound from "./pages/NotFound";
+import { AuthForm } from "@/components/auth/AuthForm";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/employees" element={<EmployeesPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/branches" element={<BranchesPage />} />
+            <Route path="/login" element={<AuthForm />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

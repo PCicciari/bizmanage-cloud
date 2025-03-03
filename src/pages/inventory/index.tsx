@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -15,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { InventoryForm } from "./components/InventoryForm";
 import { InventoryCard } from "./components/InventoryCard";
 import { InventoryFilters } from "./components/InventoryFilters";
+import { AuthForm } from "@/components/auth/AuthForm";
+import { useAuth } from "@/contexts/AuthContext";
 
 const LOW_STOCK_THRESHOLD = 10;
 
@@ -26,6 +27,7 @@ const InventoryPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [stockFilter, setStockFilter] = useState<"all" | "low">("all");
   const [selectedBranch, setSelectedBranch] = useState<string>("");
+  const { user, loading } = useAuth();
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["inventory", selectedBranch],
@@ -55,6 +57,7 @@ const InventoryPage = () => {
 
       return data;
     },
+    enabled: !!user,
   });
 
   const { data: branches } = useQuery({
@@ -147,6 +150,24 @@ const InventoryPage = () => {
       (stockFilter === "low" && item.quantity <= LOW_STOCK_THRESHOLD);
     return matchesSearch && matchesStockFilter;
   });
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <h2 className="text-3xl font-semibold">Loading...</h2>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <AuthForm />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
