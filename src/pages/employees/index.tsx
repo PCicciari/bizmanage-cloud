@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -22,31 +21,34 @@ const EmployeesPage = () => {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const { user, loading, userProfile } = useAuth();
+  const { user, loading, isAdmin, isBranchManager, branchId } = useAuth();
 
-  // Check if the user is a branch admin
-  const isBranchAdmin = userProfile?.role === 'branch_manager';
-  const userBranchId = userProfile?.branch_id || "";
+  console.log("EmployeesPage rendering with auth state:", { user, loading, isAdmin, isBranchManager, branchId });
 
   const { data: employees, isLoading } = useQuery({
-    queryKey: ["employees"],
+    queryKey: ["employees", branchId],
     queryFn: async () => {
+      console.log("Fetching employees for branch:", branchId);
       let query = supabase
         .from("employees")
         .select("*")
         .order("created_at", { ascending: false });
 
       // For branch admins, only fetch employees from their branch
-      if (isBranchAdmin && userBranchId) {
-        query = query.eq("branch_id", userBranchId);
+      if (isBranchManager && branchId) {
+        query = query.eq("branch_id", branchId);
       }
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching employees:", error);
+        throw error;
+      }
+      console.log("Employees fetched:", data?.length);
       return data;
     },
-    enabled: !!user,
+    enabled: !!user, // Only run query if user is logged in
   });
 
   const { data: branches } = useQuery({
@@ -58,8 +60,8 @@ const EmployeesPage = () => {
         .order("name", { ascending: true });
       
       // For branch admins, only fetch their branch
-      if (isBranchAdmin && userBranchId) {
-        query = query.eq("id", userBranchId);
+      if (isBranchManager && branchId) {
+        query = query.eq("id", branchId);
       }
 
       const { data, error } = await query;
@@ -67,14 +69,14 @@ const EmployeesPage = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!user, // Only run query if user is logged in
   });
 
   const createMutation = useMutation({
     mutationFn: async (newEmployee: Omit<Employee, "id" | "created_at">) => {
       // For branch admins, always set the branch_id to their branch
-      if (isBranchAdmin && userBranchId) {
-        newEmployee.branch_id = userBranchId;
+      if (isBranchManager && branchId) {
+        newEmployee.branch_id = branchId;
       }
 
       const { data, error } = await supabase
@@ -96,8 +98,8 @@ const EmployeesPage = () => {
   const updateMutation = useMutation({
     mutationFn: async (employee: Partial<Employee>) => {
       // For branch admins, ensure they can't change the branch_id
-      if (isBranchAdmin && userBranchId) {
-        employee.branch_id = userBranchId;
+      if (isBranchManager && branchId) {
+        employee.branch_id = branchId;
       }
 
       const { data, error } = await supabase
@@ -167,7 +169,7 @@ const EmployeesPage = () => {
     return (
       <DashboardLayout>
         <div className="space-y-6">
-          <h2 className="text-3xl font-semibold">Loading...</h2>
+          <h2 className="text-3xl font-semibold">Loading employees...</h2>
         </div>
       </DashboardLayout>
     );
@@ -191,8 +193,8 @@ const EmployeesPage = () => {
                 onSubmit={handleSubmit}
                 isLoading={createMutation.isPending || updateMutation.isPending}
                 branches={branches}
-                isBranchAdmin={isBranchAdmin}
-                userBranchId={userBranchId}
+                isBranchAdmin={isBranchManager}
+                branchId={branchId}
               />
             </DialogContent>
           </Dialog>

@@ -6,12 +6,9 @@ import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarMenuItem
 import { Building, LayoutDashboard, Package, Users, LogOut } from "lucide-react";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { logout, isAdmin, loading, userProfile } = useAuth();
+  const { logout, isAdmin, isBranchManager, loading, userProfile } = useAuth();
   
-  console.log("DashboardLayout rendering", { isAdmin, loading, userProfile });
-  
-  // Define navigation based on user role
-  const isBranchAdmin = userProfile?.role === 'branch_manager';
+  console.log("DashboardLayout rendering", { isAdmin, isBranchManager, loading, userProfile });
   
   // Navigation items for different roles
   const adminNavigation = [
@@ -21,17 +18,18 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: "Branches", icon: Building, href: "/branches" },
   ];
   
-  const branchAdminNavigation = [
+  const branchManagerNavigation = [
     { name: "Dashboard", icon: LayoutDashboard, href: "/" },
     { name: "Employees", icon: Users, href: "/employees" },
     { name: "Inventory", icon: Package, href: "/inventory" },
   ];
   
   // Choose navigation based on role
-  const navigation = isBranchAdmin ? branchAdminNavigation : adminNavigation;
+  let navigation = adminNavigation;
   
-  // During loading, show all items
-  const filteredNavigation = loading ? adminNavigation : navigation;
+  if (isBranchManager) {
+    navigation = branchManagerNavigation;
+  }
   
   return (
     <SidebarProvider>
@@ -46,7 +44,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </Button>
               </div>
               
-              {filteredNavigation.map((item) => (
+              {navigation.map((item) => (
                 <SidebarMenuItem key={item.name}>
                   <SidebarMenuButton asChild>
                     <Link

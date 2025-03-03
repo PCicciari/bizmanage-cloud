@@ -1,15 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { supabase } from "@/lib/supabase";
-import { User } from "@supabase/supabase-js";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Sale, Employee, InventoryItem, Branch } from "@/types/database.types";
 import { formatDistance } from "date-fns";
-import { Navigate } from "react-router-dom";
 
 const calculateTotalSales = (sales: Sale[]) => {
   return sales.reduce((total, sale) => total + sale.total_amount, 0);
@@ -203,6 +201,7 @@ const BranchManagerDashboard = ({ branchId }: { branchId: string }) => {
       if (error) throw error;
       return data || [];
     },
+    enabled: !!branchId,
   });
 
   const { data: branchEmployees } = useQuery({
@@ -215,6 +214,7 @@ const BranchManagerDashboard = ({ branchId }: { branchId: string }) => {
       if (error) throw error;
       return data || [];
     },
+    enabled: !!branchId,
   });
 
   const { data: branchInventory } = useQuery({
@@ -227,6 +227,7 @@ const BranchManagerDashboard = ({ branchId }: { branchId: string }) => {
       if (error) throw error;
       return data || [];
     },
+    enabled: !!branchId,
   });
 
   const today = new Date();
@@ -352,7 +353,7 @@ const LoadingSkeleton = () => (
 const Index = () => {
   const { user, loading, isAdmin, isBranchManager, branchId } = useAuth();
   
-  console.log("Index page rendering with auth state:", { user, loading, isAdmin, isBranchManager });
+  console.log("Index page rendering with auth state:", { user, loading, isAdmin, isBranchManager, branchId });
 
   if (loading) {
     return (
@@ -367,6 +368,20 @@ const Index = () => {
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
         <AuthForm />
       </div>
+    );
+  }
+
+  if (isBranchManager && !branchId) {
+    return (
+      <DashboardLayout>
+        <div className="text-center p-6">
+          <h2 className="text-2xl font-semibold text-red-600">Branch Manager Setup Error</h2>
+          <p className="mt-2 text-gray-600">
+            Your account is configured as a branch manager but no branch is assigned.
+            Please contact an administrator to assign you to a branch.
+          </p>
+        </div>
+      </DashboardLayout>
     );
   }
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -27,16 +27,13 @@ const InventoryPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [stockFilter, setStockFilter] = useState<"all" | "low">("all");
   const [selectedBranch, setSelectedBranch] = useState<string>("");
-  const { user, loading, isAdmin, userProfile } = useAuth();
-
-  const isBranchAdmin = userProfile?.role === 'branch_manager';
-  const userBranchId = userProfile?.branch_id || "";
-
-  useState(() => {
-    if (isBranchAdmin && userBranchId) {
-      setSelectedBranch(userBranchId);
+  const { user, loading, isAdmin, isBranchManager, branchId } = useAuth();
+  
+  useEffect(() => {
+    if (isBranchManager && branchId) {
+      setSelectedBranch(branchId);
     }
-  });
+  }, [isBranchManager, branchId]);
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["inventory", selectedBranch],
@@ -46,8 +43,8 @@ const InventoryPage = () => {
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (isBranchAdmin && userBranchId) {
-        query = query.eq("branch_id", userBranchId);
+      if (isBranchManager && branchId) {
+        query = query.eq("branch_id", branchId);
       } else if (selectedBranch) {
         query = query.eq("branch_id", selectedBranch);
       }
@@ -79,8 +76,8 @@ const InventoryPage = () => {
         .select("*")
         .order("name", { ascending: true });
       
-      if (isBranchAdmin && userBranchId) {
-        query = query.eq("id", userBranchId);
+      if (isBranchManager && branchId) {
+        query = query.eq("id", branchId);
       }
 
       const { data, error } = await query;
@@ -144,8 +141,8 @@ const InventoryPage = () => {
   });
 
   const handleSubmit = (formData: Partial<InventoryItem>) => {
-    if (isBranchAdmin && userBranchId) {
-      formData.branch_id = userBranchId;
+    if (isBranchManager && branchId) {
+      formData.branch_id = branchId;
     }
     
     if (editingItem) {
@@ -195,7 +192,7 @@ const InventoryPage = () => {
     return (
       <DashboardLayout>
         <div className="space-y-6">
-          <h2 className="text-3xl font-semibold">Loading...</h2>
+          <h2 className="text-3xl font-semibold">Loading inventory...</h2>
         </div>
       </DashboardLayout>
     );
@@ -219,8 +216,8 @@ const InventoryPage = () => {
                 branches={branches}
                 onSubmit={handleSubmit}
                 isLoading={createMutation.isPending || updateMutation.isPending}
-                isBranchAdmin={isBranchAdmin}
-                userBranchId={userBranchId}
+                isBranchAdmin={isBranchManager}
+                userBranchId={branchId}
               />
             </DialogContent>
           </Dialog>
@@ -234,7 +231,7 @@ const InventoryPage = () => {
           stockFilter={stockFilter}
           onStockFilterChange={setStockFilter}
           branches={branches}
-          isBranchAdmin={isBranchAdmin}
+          isBranchAdmin={isBranchManager}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

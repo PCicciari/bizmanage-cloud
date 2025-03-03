@@ -37,7 +37,7 @@ interface BranchStatistics {
 
 const BranchesPage = () => {
   console.log("Rendering BranchesPage");
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
@@ -49,6 +49,37 @@ const BranchesPage = () => {
     manager_id: "",
     branch_code: "",
   });
+
+  // Redirect if not admin
+  if (!isAdmin && !authLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <h2 className="text-3xl font-semibold text-red-600">Access Denied</h2>
+          <p className="text-gray-600">You do not have permission to view this page.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Redirect if not logged in
+  if (!user && !authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <AuthForm />
+      </div>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <h2 className="text-3xl font-semibold">Loading...</h2>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const { data: branches, isLoading: branchesLoading, error: branchesError } = useQuery({
     queryKey: ["branches"],
@@ -104,24 +135,6 @@ const BranchesPage = () => {
     },
     enabled: !!user,
   });
-
-  if (!user && !authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <AuthForm />
-      </div>
-    );
-  }
-
-  if (authLoading) {
-    return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <h2 className="text-3xl font-semibold">Loading...</h2>
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   if (branchesError) console.error("Branches error:", branchesError);
   if (employeesError) console.error("Employees error:", employeesError);

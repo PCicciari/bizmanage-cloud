@@ -99,6 +99,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserProfile(data);
     } catch (error) {
       console.error("Error fetching user profile:", error);
+      toast({
+        title: "Error fetching profile",
+        description: "Could not load your user profile. Please try logging in again.",
+        variant: "destructive",
+      });
       setUserProfile(null);
     } finally {
       setLoading(false);
@@ -128,16 +133,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // For development purposes, we'll set admin access if no user is detected
-  // REMOVE THIS IN PRODUCTION!
-  const devMode = true;
+  // For development mode (will be removed in production)
+  const devMode = false; // Change to false to require proper login
+  
+  // Determine user roles
+  const isAdmin = userProfile?.role === "admin";
+  const isBranchManager = userProfile?.role === "branch_manager";
+  const branchId = userProfile?.branch_id || null;
+
   const value = {
     user,
     userProfile,
-    loading: loading && !devMode, // Force loading to false in dev mode
-    isAdmin: userProfile?.role === "admin" || (devMode && !user),
-    isBranchManager: userProfile?.role === "branch_manager",
-    branchId: userProfile?.branch_id ?? null,
+    loading,
+    isAdmin: isAdmin || (devMode && !user), // Keep dev mode for admin access
+    isBranchManager,
+    branchId,
     logout,
   };
 
