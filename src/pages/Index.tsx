@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -10,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Sale, Employee, InventoryItem, Branch } from "@/types/database.types";
 import { formatDistance } from "date-fns";
+import { Navigate } from "react-router-dom";
 
 const calculateTotalSales = (sales: Sale[]) => {
   return sales.reduce((total, sale) => total + sale.total_amount, 0);
@@ -316,7 +316,6 @@ const BranchManagerDashboard = ({ branchId }: { branchId: string }) => {
               </div>
             </div>
             
-            {/* Top selling inventory items section */}
             {branchInventory && branchInventory.length > 0 && (
               <div>
                 <h4 className="text-sm font-medium mb-2">Top Inventory Items</h4>
@@ -352,6 +351,8 @@ const LoadingSkeleton = () => (
 
 const Index = () => {
   const { user, loading, isAdmin, isBranchManager, branchId } = useAuth();
+  
+  console.log("Index page rendering with auth state:", { user, loading, isAdmin, isBranchManager });
 
   if (loading) {
     return (
