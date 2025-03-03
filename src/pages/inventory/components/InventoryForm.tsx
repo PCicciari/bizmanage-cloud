@@ -3,19 +3,22 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Branch, InventoryItem } from "@/types/database.types";
+import { InventoryItem, Branch } from "@/types/database.types";
 
 interface InventoryFormProps {
   editingItem: InventoryItem | null;
   branches: Branch[] | undefined;
   onSubmit: (formData: Partial<InventoryItem>) => void;
   isLoading: boolean;
+  isBranchAdmin?: boolean;
+  userBranchId?: string;
 }
 
 export function InventoryForm({
@@ -23,14 +26,16 @@ export function InventoryForm({
   branches,
   onSubmit,
   isLoading,
+  isBranchAdmin = false,
+  userBranchId = "",
 }: InventoryFormProps) {
   const [formData, setFormData] = useState({
     name: editingItem?.name || "",
     description: editingItem?.description || "",
     quantity: editingItem?.quantity.toString() || "",
     price: editingItem?.price.toString() || "",
-    reorder_point: editingItem?.reorder_point.toString() || "",
-    branch_id: editingItem?.branch_id || "",
+    branch_id: isBranchAdmin ? userBranchId : (editingItem?.branch_id || (branches?.[0]?.id || "")),
+    reorder_point: editingItem?.reorder_point?.toString() || "0",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -43,6 +48,12 @@ export function InventoryForm({
     });
   };
 
+  // Get the branch name for display in branch admin mode
+  const getBranchName = (branchId: string): string => {
+    const branch = branches?.find(b => b.id === branchId);
+    return branch?.name || "Unknown Branch";
+  };
+
   return (
     <>
       <DialogHeader>
@@ -50,7 +61,7 @@ export function InventoryForm({
           {editingItem ? "Edit Item" : "Add New Item"}
         </DialogTitle>
         <DialogDescription>
-          Fill in the item details below.
+          Fill in the details for the inventory item.
         </DialogDescription>
       </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -67,7 +78,7 @@ export function InventoryForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="description">Description</Label>
-          <Input
+          <Textarea
             id="description"
             value={formData.description}
             onChange={(e) =>
@@ -82,7 +93,6 @@ export function InventoryForm({
             <Input
               id="quantity"
               type="number"
-              min="0"
               value={formData.quantity}
               onChange={(e) =>
                 setFormData({ ...formData, quantity: e.target.value })
@@ -95,7 +105,6 @@ export function InventoryForm({
             <Input
               id="price"
               type="number"
-              min="0"
               step="0.01"
               value={formData.price}
               onChange={(e) =>
@@ -105,37 +114,46 @@ export function InventoryForm({
             />
           </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="reorder_point">Reorder Point</Label>
-          <Input
-            id="reorder_point"
-            type="number"
-            min="0"
-            value={formData.reorder_point}
-            onChange={(e) =>
-              setFormData({ ...formData, reorder_point: e.target.value })
-            }
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="branch">Branch</Label>
-          <select
-            id="branch"
-            className="w-full rounded-md border border-input bg-background px-3 py-2"
-            value={formData.branch_id}
-            onChange={(e) =>
-              setFormData({ ...formData, branch_id: e.target.value })
-            }
-            required
-          >
-            <option value="">Select a branch</option>
-            {branches?.map((branch: Branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="reorder_point">Reorder Point</Label>
+            <Input
+              id="reorder_point"
+              type="number"
+              value={formData.reorder_point}
+              onChange={(e) =>
+                setFormData({ ...formData, reorder_point: e.target.value })
+              }
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="branch">Branch</Label>
+            {isBranchAdmin ? (
+              <Input
+                id="branch"
+                value={getBranchName(userBranchId)}
+                disabled
+              />
+            ) : (
+              <select
+                id="branch"
+                className="w-full rounded-md border border-input bg-background px-3 py-2"
+                value={formData.branch_id}
+                onChange={(e) =>
+                  setFormData({ ...formData, branch_id: e.target.value })
+                }
+                required
+              >
+                <option value="">Select a branch</option>
+                {branches?.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button type="submit" disabled={isLoading}>

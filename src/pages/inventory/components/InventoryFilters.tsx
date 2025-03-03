@@ -1,5 +1,5 @@
 
-import { Search, AlertCircle, Building } from "lucide-react";
+import { Search, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Branch } from "@/types/database.types";
@@ -12,6 +12,7 @@ interface InventoryFiltersProps {
   stockFilter: "all" | "low";
   onStockFilterChange: (value: "all" | "low") => void;
   branches: Branch[] | undefined;
+  isBranchAdmin?: boolean;
 }
 
 export function InventoryFilters({
@@ -22,7 +23,14 @@ export function InventoryFilters({
   stockFilter,
   onStockFilterChange,
   branches,
+  isBranchAdmin = false,
 }: InventoryFiltersProps) {
+  // Get the branch name for display in branch admin mode
+  const getBranchName = (branchId: string): string => {
+    const branch = branches?.find(b => b.id === branchId);
+    return branch?.name || "Unknown Branch";
+  };
+
   return (
     <div className="flex gap-4 items-center">
       <div className="relative flex-1">
@@ -34,18 +42,26 @@ export function InventoryFilters({
           onChange={(e) => onSearchChange(e.target.value)}
         />
       </div>
-      <select
-        className="rounded-md border border-input bg-background px-3 py-2"
-        value={selectedBranch}
-        onChange={(e) => onBranchChange(e.target.value)}
-      >
-        <option value="">All Branches</option>
-        {branches?.map((branch: Branch) => (
-          <option key={branch.id} value={branch.id}>
-            {branch.name}
-          </option>
-        ))}
-      </select>
+      
+      {isBranchAdmin ? (
+        <div className="rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+          {getBranchName(selectedBranch)}
+        </div>
+      ) : (
+        <select
+          className="rounded-md border border-input bg-background px-3 py-2"
+          value={selectedBranch}
+          onChange={(e) => onBranchChange(e.target.value)}
+        >
+          <option value="">All Branches</option>
+          {branches?.map((branch: Branch) => (
+            <option key={branch.id} value={branch.id}>
+              {branch.name}
+            </option>
+          ))}
+        </select>
+      )}
+      
       <Button
         variant={stockFilter === "low" ? "destructive" : "outline"}
         onClick={() => onStockFilterChange(stockFilter === "low" ? "all" : "low")}

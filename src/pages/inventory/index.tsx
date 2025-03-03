@@ -27,7 +27,16 @@ const InventoryPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [stockFilter, setStockFilter] = useState<"all" | "low">("all");
   const [selectedBranch, setSelectedBranch] = useState<string>("");
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin, userProfile } = useAuth();
+
+  const isBranchAdmin = userProfile?.role === 'branch_manager';
+  const userBranchId = userProfile?.branch_id || "";
+
+  useState(() => {
+    if (isBranchAdmin && userBranchId) {
+      setSelectedBranch(userBranchId);
+    }
+  });
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["inventory", selectedBranch],
@@ -37,7 +46,9 @@ const InventoryPage = () => {
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (selectedBranch) {
+      if (isBranchAdmin && userBranchId) {
+        query = query.eq("branch_id", userBranchId);
+      } else if (selectedBranch) {
         query = query.eq("branch_id", selectedBranch);
       }
 
@@ -63,14 +74,21 @@ const InventoryPage = () => {
   const { data: branches } = useQuery({
     queryKey: ["branches"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("branches")
         .select("*")
         .order("name", { ascending: true });
+      
+      if (isBranchAdmin && userBranchId) {
+        query = query.eq("id", userBranchId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data;
     },
+    enabled: !!user,
   });
 
   const createMutation = useMutation({
@@ -126,6 +144,10 @@ const InventoryPage = () => {
   });
 
   const handleSubmit = (formData: Partial<InventoryItem>) => {
+    if (isBranchAdmin && userBranchId) {
+      formData.branch_id = userBranchId;
+    }
+    
     if (editingItem) {
       updateMutation.mutate(formData);
     } else {
@@ -197,6 +219,8 @@ const InventoryPage = () => {
                 branches={branches}
                 onSubmit={handleSubmit}
                 isLoading={createMutation.isPending || updateMutation.isPending}
+                isBranchAdmin={isBranchAdmin}
+                userBranchId={userBranchId}
               />
             </DialogContent>
           </Dialog>
@@ -210,6 +234,7 @@ const InventoryPage = () => {
           stockFilter={stockFilter}
           onStockFilterChange={setStockFilter}
           branches={branches}
+          isBranchAdmin={isBranchAdmin}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

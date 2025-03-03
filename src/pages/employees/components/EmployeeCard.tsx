@@ -9,19 +9,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Employee } from "@/types/database.types";
+import { Employee, Branch } from "@/types/database.types";
 
 interface EmployeeCardProps {
   employee: Employee;
   onEdit: (employee: Employee) => void;
   onDelete: (id: string) => void;
+  branches?: Branch[] | undefined;
 }
 
 export function EmployeeCard({
   employee,
   onEdit,
   onDelete,
+  branches,
 }: EmployeeCardProps) {
+  // Get branch name
+  const getBranchName = (branchId: string): string => {
+    const branch = branches?.find(b => b.id === branchId);
+    return branch?.name || "Unknown Branch";
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -37,6 +45,9 @@ export function EmployeeCard({
           </p>
           <p className="text-sm text-gray-600">
             Salary: ${employee.salary.toLocaleString()}
+          </p>
+          <p className="text-sm text-gray-600">
+            Branch: {getBranchName(employee.branch_id)}
           </p>
         </div>
       </CardContent>

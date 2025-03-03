@@ -5,26 +5,33 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarMenuItem, SidebarMenuButton, SidebarMenuSkeleton } from "@/components/ui/sidebar";
 import { Building, LayoutDashboard, Package, Users, LogOut } from "lucide-react";
 
-// Define the navigation items
-const navigation = [
-  { name: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { name: "Employees", icon: Users, href: "/employees" },
-  { name: "Inventory", icon: Package, href: "/inventory" },
-  { name: "Branches", icon: Building, href: "/branches" },
-];
-
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { logout, isAdmin, loading } = useAuth();
+  const { logout, isAdmin, loading, userProfile } = useAuth();
   
-  console.log("DashboardLayout rendering", { isAdmin, loading });
+  console.log("DashboardLayout rendering", { isAdmin, loading, userProfile });
   
-  // Always show navigation while we're loading, then filter based on role
-  const filteredNavigation = navigation.filter(item => {
-    // During loading or for admins, show all items
-    if (loading || isAdmin) return true;
-    // Non-admins only see Dashboard
-    return item.name === "Dashboard";
-  });
+  // Define navigation based on user role
+  const isBranchAdmin = userProfile?.role === 'branch_manager';
+  
+  // Navigation items for different roles
+  const adminNavigation = [
+    { name: "Dashboard", icon: LayoutDashboard, href: "/" },
+    { name: "Employees", icon: Users, href: "/employees" },
+    { name: "Inventory", icon: Package, href: "/inventory" },
+    { name: "Branches", icon: Building, href: "/branches" },
+  ];
+  
+  const branchAdminNavigation = [
+    { name: "Dashboard", icon: LayoutDashboard, href: "/" },
+    { name: "Employees", icon: Users, href: "/employees" },
+    { name: "Inventory", icon: Package, href: "/inventory" },
+  ];
+  
+  // Choose navigation based on role
+  const navigation = isBranchAdmin ? branchAdminNavigation : adminNavigation;
+  
+  // During loading, show all items
+  const filteredNavigation = loading ? adminNavigation : navigation;
   
   return (
     <SidebarProvider>
@@ -39,7 +46,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </Button>
               </div>
               
-              {/* Always show menu items, with loading indicators if needed */}
               {filteredNavigation.map((item) => (
                 <SidebarMenuItem key={item.name}>
                   <SidebarMenuButton asChild>

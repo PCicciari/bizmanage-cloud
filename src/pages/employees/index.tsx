@@ -14,31 +14,72 @@ import { Employee } from "@/types/database.types";
 import { useToast } from "@/hooks/use-toast";
 import { EmployeeForm } from "./components/EmployeeForm";
 import { EmployeeCard } from "./components/EmployeeCard";
+import { AuthForm } from "@/components/auth/AuthForm";
+import { useAuth } from "@/contexts/AuthContext";
 
 const EmployeesPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const { user, loading, userProfile } = useAuth();
+
+  // Check if the user is a branch admin
+  const isBranchAdmin = userProfile?.role === 'branch_manager';
+  const userBranchId = userProfile?.branch_id || "";
 
   const { data: employees, isLoading } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("employees")
         .select("*")
         .order("created_at", { ascending: false });
 
+      // For branch admins, only fetch employees from their branch
+      if (isBranchAdmin && userBranchId) {
+        query = query.eq("branch_id", userBranchId);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
       return data;
     },
+    enabled: !!user,
+  });
+
+  const { data: branches } = useQuery({
+    queryKey: ["branches"],
+    queryFn: async () => {
+      let query = supabase
+        .from("branches")
+        .select("*")
+        .order("name", { ascending: true });
+      
+      // For branch admins, only fetch their branch
+      if (isBranchAdmin && userBranchId) {
+        query = query.eq("id", userBranchId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
   });
 
   const createMutation = useMutation({
-    mutationFn: async (newEmployee: Omit<Employee, "id" | "created_at" | "branch_id">) => {
+    mutationFn: async (newEmployee: Omit<Employee, "id" | "created_at">) => {
+      // For branch admins, always set the branch_id to their branch
+      if (isBranchAdmin && userBranchId) {
+        newEmployee.branch_id = userBranchId;
+      }
+
       const { data, error } = await supabase
         .from("employees")
-        .insert([{ ...newEmployee, branch_id: "default" }])
+        .insert([newEmployee])
         .select()
         .single();
 
@@ -54,6 +95,11 @@ const EmployeesPage = () => {
 
   const updateMutation = useMutation({
     mutationFn: async (employee: Partial<Employee>) => {
+      // For branch admins, ensure they can't change the branch_id
+      if (isBranchAdmin && userBranchId) {
+        employee.branch_id = userBranchId;
+      }
+
       const { data, error } = await supabase
         .from("employees")
         .update(employee)
@@ -90,7 +136,7 @@ const EmployeesPage = () => {
     if (editingEmployee) {
       updateMutation.mutate(formData);
     } else {
-      createMutation.mutate(formData as Omit<Employee, "id" | "created_at" | "branch_id">);
+      createMutation.mutate(formData as Omit<Employee, "id" | "created_at">);
     }
   };
 
@@ -98,6 +144,24 @@ const EmployeesPage = () => {
     setIsOpen(false);
     setEditingEmployee(null);
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <h2 className="text-3xl font-semibold">Loading...</h2>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <AuthForm />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -126,6 +190,9 @@ const EmployeesPage = () => {
                 editingEmployee={editingEmployee}
                 onSubmit={handleSubmit}
                 isLoading={createMutation.isPending || updateMutation.isPending}
+                branches={branches}
+                isBranchAdmin={isBranchAdmin}
+                userBranchId={userBranchId}
               />
             </DialogContent>
           </Dialog>
@@ -141,6 +208,7 @@ const EmployeesPage = () => {
                 setIsOpen(true);
               }}
               onDelete={(id) => deleteMutation.mutate(id)}
+              branches={branches}
             />
           ))}
         </div>
