@@ -29,9 +29,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   
   // Check for both user and userProfile to ensure everything is loaded
   if (!user || !userProfile) {
+    console.log("Protected route: redirecting to login because no user or profile");
     return <Navigate to="/login" replace />;
   }
   
+  console.log("Protected route: rendering children");
   return <>{children}</>;
 };
 
@@ -49,9 +51,11 @@ const LoginRoute = () => {
   
   // Only redirect if both user and userProfile exist
   if (user && userProfile) {
+    console.log("Login route: redirecting to dashboard because user and profile exist");
     return <Navigate to="/" replace />;
   }
   
+  console.log("Login route: rendering login form");
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30">
       <AuthForm />
@@ -67,7 +71,7 @@ const AppRoutes = () => {
       <Route path="/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
       <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
       <Route path="/branches" element={<ProtectedRoute><BranchesPage /></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };

@@ -4,7 +4,6 @@ import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { UserProfile } from "@/types/database.types";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 
 interface AuthContextType {
   user: User | null;
@@ -91,9 +90,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
+    console.log("AuthContext: Attempting to fetch user profile for", userId);
     try {
-      console.log("AuthContext: Fetching user profile", { userId });
-      
       // First, ensure the user_profiles table exists
       const { error: createTableError } = await supabase.rpc('create_user_profiles_if_not_exists');
       if (createTableError) {
@@ -107,6 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
+        console.log("Profile fetch error:", error.message, error.code);
         // If there's no profile, create a default one
         if (error.code === 'PGRST116') {
           console.log("No profile found, creating default admin profile");
@@ -118,8 +117,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .single();
             
           if (createError) {
+            console.error("Error creating profile:", createError);
             throw createError;
           }
+          console.log("New profile created:", newProfile);
           setUserProfile(newProfile);
         } else {
           throw error;
@@ -135,12 +136,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: "Could not load your user profile. Please try logging in again.",
         variant: "destructive",
       });
-      // Sign out the user since there's an issue with their profile
-      await supabase.auth.signOut();
+      // Don't automatically sign out as it can create loops
       setUserProfile(null);
-      setUser(null);
     } finally {
       setLoading(false);
+      console.log("AuthContext: Profile fetch complete, loading set to false");
     }
   };
 
@@ -187,7 +187,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
   };
 
-  console.log("AuthContext: Current state", value);
+  console.log("AuthContext: Current state", { 
+    user: user?.id, 
+    userProfile: userProfile?.id,
+    loading, 
+    isAdmin, 
+    isBranchManager 
+  });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

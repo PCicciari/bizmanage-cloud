@@ -7,7 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { useNavigate } from "react-router-dom";
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -17,10 +16,10 @@ export function AuthForm() {
   const [branchCode, setBranchCode] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const createUserProfile = async (userId: string, role: "admin" | "branch_manager", branchCode?: string) => {
     try {
+      console.log("Creating user profile:", { userId, role, branchCode });
       const { error: createTableError } = await supabase.rpc('create_user_profiles_if_not_exists');
       if (createTableError) {
         console.error("Error creating table:", createTableError);
@@ -38,6 +37,18 @@ export function AuthForm() {
         }
       }
 
+      // Check if profile already exists
+      const { data: existingProfile } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+        
+      if (existingProfile) {
+        console.log("Profile already exists, not creating a new one");
+        return;
+      }
+
       const { error: profileError } = await supabase
         .from("user_profiles")
         .insert([
@@ -49,6 +60,7 @@ export function AuthForm() {
         ]);
 
       if (profileError) throw profileError;
+      console.log("User profile created successfully");
     } catch (error: any) {
       console.error("Error creating user profile:", error);
       throw new Error(error.message || "Failed to create user profile. Please contact support.");
@@ -61,11 +73,14 @@ export function AuthForm() {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        console.log("Attempting to sign in with email:", email);
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
+        
         if (error) throw error;
+        console.log("Sign in successful:", data);
         
         toast({
           title: "Welcome back!",
@@ -74,12 +89,14 @@ export function AuthForm() {
         
         // Navigation will happen automatically through the protected route
       } else {
+        console.log("Attempting to sign up with email:", email);
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password,
         });
 
         if (authError) throw authError;
+        console.log("Sign up successful:", authData);
 
         if (!authData.user) {
           throw new Error("Failed to create user account.");
