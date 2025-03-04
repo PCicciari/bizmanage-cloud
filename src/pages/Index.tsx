@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { AuthForm } from "@/components/auth/AuthForm";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -351,23 +350,15 @@ const LoadingSkeleton = () => (
 );
 
 const Index = () => {
-  const { user, loading, isAdmin, isBranchManager, branchId } = useAuth();
+  const { user, loading, isAdmin, isBranchManager, branchId, userProfile } = useAuth();
   
-  console.log("Index page rendering with auth state:", { user, loading, isAdmin, isBranchManager, branchId });
+  console.log("Index page rendering with auth state:", { user, loading, isAdmin, isBranchManager, branchId, userProfile });
 
   if (loading) {
     return (
       <DashboardLayout>
         <LoadingSkeleton />
       </DashboardLayout>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <AuthForm />
-      </div>
     );
   }
 

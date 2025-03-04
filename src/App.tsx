@@ -11,8 +11,52 @@ import InventoryPage from "./pages/inventory";
 import BranchesPage from "./pages/branches";
 import NotFound from "./pages/NotFound";
 import { AuthForm } from "@/components/auth/AuthForm";
+import { useAuth } from "@/contexts/AuthContext";
 
 const queryClient = new QueryClient();
+
+// Create a protected route component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) return null; // Don't render anything while loading
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
+// Create a login route component that redirects if already logged in
+const LoginRoute = () => {
+  const { user, loading } = useAuth();
+  
+  if (loading) return null; // Don't render anything while loading
+  
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-muted/30">
+      <AuthForm />
+    </div>
+  );
+};
+
+const AppRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginRoute />} />
+      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+      <Route path="/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
+      <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
+      <Route path="/branches" element={<ProtectedRoute><BranchesPage /></ProtectedRoute>} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -21,14 +65,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/employees" element={<EmployeesPage />} />
-            <Route path="/inventory" element={<InventoryPage />} />
-            <Route path="/branches" element={<BranchesPage />} />
-            <Route path="/login" element={<AuthForm />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AppRoutes />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

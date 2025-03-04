@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,7 @@ export function AuthForm() {
         console.error("Error creating table:", createTableError);
       }
 
-      if (branchCode) {
+      if (branchCode && role === "branch_manager") {
         const { data: branchExists, error: branchError } = await supabase
           .from("branches")
           .select("branch_code")
@@ -71,7 +72,7 @@ export function AuthForm() {
           description: "You have successfully signed in.",
         });
         
-        navigate("/");
+        // Navigation will happen automatically through the protected route
       } else {
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
@@ -100,9 +101,8 @@ export function AuthForm() {
             title: "Verification needed",
             description: "Please check your email to verify your account before logging in.",
           });
-        } else {
-          navigate("/");
         }
+        // Navigation will happen automatically through the protected route
       }
     } catch (error: any) {
       console.error("Authentication error:", error);

@@ -67,8 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log("AuthContext: Auth state changed", { session });
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("AuthContext: Auth state changed", { event, session });
       setUser(session?.user ?? null);
       
       if (session?.user) {
@@ -85,6 +85,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserProfile = async (userId: string) => {
     try {
       console.log("AuthContext: Fetching user profile", { userId });
+      
+      // First, ensure the user_profiles table exists
+      const { error: createTableError } = await supabase.rpc('create_user_profiles_if_not_exists');
+      if (createTableError) {
+        console.error("Error creating table:", createTableError);
+      }
+      
       const { data, error } = await supabase
         .from("user_profiles")
         .select("*")
@@ -92,11 +99,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
-        throw error;
+        // If there's no profile, create a default one
+        if (error.code === 'PGRST116') {
+          console.log("No profile found, creating default admin profile");
+          // Create a default admin profile if none exists
+          const { data: newProfile, error: createError } = await supabase
+            .from("user_profiles")
+            .insert([{ id: userId, role: "admin" }])
+            .select()
+            .single();
+            
+          if (createError) {
+            throw createError;
+          }
+          setUserProfile(newProfile);
+        } else {
+          throw error;
+        }
+      } else {
+        console.log("AuthContext: User profile fetched", { data });
+        setUserProfile(data);
       }
-
-      console.log("AuthContext: User profile fetched", { data });
-      setUserProfile(data);
     } catch (error) {
       console.error("Error fetching user profile:", error);
       toast({
@@ -133,9 +156,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // For development mode (will be removed in production)
-  const devMode = false; // Change to false to require proper login
-  
   // Determine user roles
   const isAdmin = userProfile?.role === "admin";
   const isBranchManager = userProfile?.role === "branch_manager";
@@ -145,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     userProfile,
     loading,
-    isAdmin: isAdmin || (devMode && !user), // Keep dev mode for admin access
+    isAdmin,
     isBranchManager,
     branchId,
     logout,
