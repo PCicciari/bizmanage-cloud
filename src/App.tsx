@@ -17,11 +17,18 @@ const queryClient = new QueryClient();
 
 // Create a protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   
-  if (loading) return null; // Don't render anything while loading
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   
-  if (!user) {
+  // Check for both user and userProfile to ensure everything is loaded
+  if (!user || !userProfile) {
     return <Navigate to="/login" replace />;
   }
   
@@ -30,11 +37,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Create a login route component that redirects if already logged in
 const LoginRoute = () => {
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   
-  if (loading) return null; // Don't render anything while loading
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   
-  if (user) {
+  // Only redirect if both user and userProfile exist
+  if (user && userProfile) {
     return <Navigate to="/" replace />;
   }
   

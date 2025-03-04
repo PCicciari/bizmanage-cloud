@@ -37,29 +37,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     const initializeAuth = async () => {
       try {
-        // Force loading to false after 2 seconds to prevent infinite loading
-        const timeout = setTimeout(() => {
-          if (loading) {
-            console.log("AuthContext: Forcing loading to false after timeout");
-            setLoading(false);
-          }
-        }, 2000);
-
+        // Check if there's an active session
         const { data: { session } } = await supabase.auth.getSession();
         console.log("AuthContext: Session check", { session });
         
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await fetchUserProfile(session.user.id);
-        } else {
-          clearTimeout(timeout);
+        if (!session) {
+          // No session, we're done
+          setUser(null);
+          setUserProfile(null);
           setLoading(false);
+          return;
         }
-
-        return () => clearTimeout(timeout);
+        
+        // We have a session, set the user
+        setUser(session.user);
+        
+        // Fetch the user profile
+        await fetchUserProfile(session.user.id);
       } catch (error) {
         console.error("AuthContext: Error during initialization", error);
+        setUser(null);
+        setUserProfile(null);
         setLoading(false);
       }
     };
@@ -70,11 +68,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("AuthContext: Auth state changed", { event, session });
-      setUser(session?.user ?? null);
+      
+      if (event === 'SIGNED_OUT') {
+        // Clear all auth state on sign out
+        setUser(null);
+        setUserProfile(null);
+        setLoading(false);
+        return;
+      }
       
       if (session?.user) {
+        setUser(session.user);
         await fetchUserProfile(session.user.id);
       } else {
+        setUser(null);
         setUserProfile(null);
         setLoading(false);
       }
@@ -128,7 +135,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: "Could not load your user profile. Please try logging in again.",
         variant: "destructive",
       });
+      // Sign out the user since there's an issue with their profile
+      await supabase.auth.signOut();
       setUserProfile(null);
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -136,6 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
+      setLoading(true); // Show loading state during logout
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
@@ -156,6 +167,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: "There was a problem signing out.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
