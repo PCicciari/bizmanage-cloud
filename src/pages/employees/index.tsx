@@ -34,7 +34,6 @@ const EmployeesPage = () => {
         .select("*")
         .order("created_at", { ascending: false });
 
-      // For branch admins, only fetch employees from their branch
       if (isBranchManager && branchId) {
         query = query.eq("branch_id", branchId);
       }
@@ -48,7 +47,7 @@ const EmployeesPage = () => {
       console.log("Employees fetched:", data?.length);
       return data;
     },
-    enabled: !!user, // Only run query if user is logged in
+    enabled: !!user,
   });
 
   const { data: branches } = useQuery({
@@ -59,7 +58,6 @@ const EmployeesPage = () => {
         .select("*")
         .order("name", { ascending: true });
       
-      // For branch admins, only fetch their branch
       if (isBranchManager && branchId) {
         query = query.eq("id", branchId);
       }
@@ -69,12 +67,11 @@ const EmployeesPage = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!user, // Only run query if user is logged in
+    enabled: !!user,
   });
 
   const createMutation = useMutation({
     mutationFn: async (newEmployee: Omit<Employee, "id" | "created_at">) => {
-      // For branch admins, always set the branch_id to their branch
       if (isBranchManager && branchId) {
         newEmployee.branch_id = branchId;
       }
@@ -97,7 +94,6 @@ const EmployeesPage = () => {
 
   const updateMutation = useMutation({
     mutationFn: async (employee: Partial<Employee>) => {
-      // For branch admins, ensure they can't change the branch_id
       if (isBranchManager && branchId) {
         employee.branch_id = branchId;
       }
@@ -194,7 +190,7 @@ const EmployeesPage = () => {
                 isLoading={createMutation.isPending || updateMutation.isPending}
                 branches={branches}
                 isBranchAdmin={isBranchManager}
-                branchId={branchId}
+                userBranchId={branchId || ""}
               />
             </DialogContent>
           </Dialog>
