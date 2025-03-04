@@ -53,7 +53,7 @@ const AppRoutes = () => {
       <Route path="/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
       <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
       <Route path="/branches" element={<ProtectedRoute><BranchesPage /></ProtectedRoute>} />
-      <Route path="*" element={<NotFound />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 };

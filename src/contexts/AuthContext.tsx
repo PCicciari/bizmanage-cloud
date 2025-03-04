@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { UserProfile } from "@/types/database.types";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface AuthContextType {
   user: User | null;
@@ -146,6 +147,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: "Logged out successfully",
         description: "You have been signed out of your account.",
       });
+      
+      // The redirect to the login page will happen automatically thanks to the ProtectedRoute in App.tsx
     } catch (error) {
       console.error("Error during logout:", error);
       toast({
