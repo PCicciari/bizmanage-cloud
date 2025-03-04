@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { useNavigate } from "react-router-dom";
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,6 +16,7 @@ export function AuthForm() {
   const [branchCode, setBranchCode] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const createUserProfile = async (userId: string, role: "admin" | "branch_manager", branchCode?: string) => {
     try {
@@ -63,10 +65,13 @@ export function AuthForm() {
           password,
         });
         if (error) throw error;
+        
         toast({
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
+        
+        navigate("/");
       } else {
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
@@ -89,6 +94,15 @@ export function AuthForm() {
           title: "Account created!",
           description: "Please check your email to confirm your account.",
         });
+        
+        if (!authData.session) {
+          toast({
+            title: "Verification needed",
+            description: "Please check your email to verify your account before logging in.",
+          });
+        } else {
+          navigate("/");
+        }
       }
     } catch (error: any) {
       console.error("Authentication error:", error);
