@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -129,7 +130,10 @@ export function AuthForm() {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      // Ensure loading state always gets cleared
+      setTimeout(() => {
+        setLoading(false);
+      }, 500);
     }
   };
 
@@ -202,7 +206,12 @@ export function AuthForm() {
             </div>
           )}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Please wait..." : isLogin ? "Sign In" : "Sign Up"}
+            {loading ? (
+              <div className="flex items-center space-x-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                <span>Please wait...</span>
+              </div>
+            ) : isLogin ? "Sign In" : "Sign Up"}
           </Button>
           <p className="text-center text-sm text-gray-500">
             {isLogin ? "Don't have an account?" : "Already have an account?"}

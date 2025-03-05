@@ -34,14 +34,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     console.log("AuthContext: Initializing");
     
+    // Add a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.log("AuthContext: Loading timeout reached, forcing loading state to false");
+        setLoading(false);
+      }
+    }, 10000); // 10 second timeout
+    
     const initializeAuth = async () => {
       try {
         // Check if there's an active session
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log("AuthContext: Session check", { session });
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        console.log("AuthContext: Session check", { session, error: sessionError });
+        
+        if (sessionError) {
+          console.error("Error retrieving session:", sessionError);
+          setLoading(false);
+          return;
+        }
         
         if (!session) {
           // No session, we're done
+          console.log("AuthContext: No session found, setting loading to false");
           setUser(null);
           setUserProfile(null);
           setLoading(false);
@@ -70,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (event === 'SIGNED_OUT') {
         // Clear all auth state on sign out
+        console.log("AuthContext: User signed out, clearing state");
         setUser(null);
         setUserProfile(null);
         setLoading(false);
@@ -86,7 +102,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(loadingTimeout); // Clear the timeout on cleanup
+    };
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
@@ -118,11 +137,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
           if (createError) {
             console.error("Error creating profile:", createError);
+            setLoading(false);
             throw createError;
           }
           console.log("New profile created:", newProfile);
           setUserProfile(newProfile);
         } else {
+          setLoading(false);
           throw error;
         }
       } else {
