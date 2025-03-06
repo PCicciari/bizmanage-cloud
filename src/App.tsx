@@ -30,10 +30,24 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  // Only redirect if we're sure there's no user or profile
-  if (!user || !userProfile) {
-    console.log("Protected route: redirecting to login because no user or profile");
+  // Only redirect if we're sure there's no user
+  if (!user) {
+    console.log("Protected route: redirecting to login because no user");
     return <Navigate to="/login" replace />;
+  }
+  
+  // If we have a user but no profile, show a loading state instead of redirecting
+  if (!userProfile) {
+    console.log("Protected route: user exists but no profile yet, showing loading");
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+          <p className="text-muted-foreground">Finalizing your profile...</p>
+          <p className="text-xs text-muted-foreground mt-2">If this takes too long, please try logging in again.</p>
+        </div>
+      </div>
+    );
   }
   
   console.log("Protected route: rendering children");
@@ -56,10 +70,24 @@ const LoginRoute = () => {
     );
   }
   
-  // If user and profile exist, redirect to dashboard
+  // If user exists and we have a profile, redirect to dashboard
   if (user && userProfile) {
     console.log("Login route: redirecting to dashboard because user and profile exist");
     return <Navigate to="/" replace />;
+  }
+  
+  // If user exists but no profile, show loading instead of login form
+  if (user && !userProfile) {
+    console.log("Login route: user exists but no profile yet, showing loading");
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+          <p className="text-muted-foreground">Setting up your profile...</p>
+          <p className="text-xs text-muted-foreground mt-2">If this takes too long, please try logging in again.</p>
+        </div>
+      </div>
+    );
   }
   
   // Otherwise show login form

@@ -41,13 +41,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("AuthContext: Loading timeout reached, forcing loading state to false");
         setLoading(false);
       }
-    }, 5000); // 5 second timeout (reduced from 10)
+    }, 5000); // 5 second timeout
     
     const initializeAuth = async () => {
       try {
         // Check if there's an active session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        console.log("AuthContext: Session check", { session, error: sessionError });
+        console.log("AuthContext: Session check", { session: session?.user?.id, error: sessionError?.message });
         
         if (sessionError) {
           console.error("Error retrieving session:", sessionError);
@@ -71,9 +71,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Fetch the user profile
         try {
-          await fetchUserProfile(session.user.id);
+          const profile = await fetchUserProfile(session.user.id);
+          if (isActive && profile) {
+            setUserProfile(profile);
+          }
         } catch (error) {
           console.error("Failed to fetch user profile during initialization:", error);
+        } finally {
           if (isActive) setLoading(false);
         }
       } catch (error) {
@@ -91,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("AuthContext: Auth state changed", { event, session });
+      console.log("AuthContext: Auth state changed", { event, session: session?.user?.id });
       
       if (event === 'SIGNED_OUT') {
         // Clear all auth state on sign out
@@ -107,9 +111,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         if (isActive) setUser(session.user);
         try {
-          await fetchUserProfile(session.user.id);
+          const profile = await fetchUserProfile(session.user.id);
+          if (isActive && profile) {
+            setUserProfile(profile);
+          }
         } catch (error) {
           console.error("Failed to fetch user profile after auth state change:", error);
+        } finally {
           if (isActive) setLoading(false);
         }
       } else {
@@ -128,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
     console.log("AuthContext: Attempting to fetch user profile for", userId);
     let retries = 3;
     
@@ -164,22 +172,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
             console.log("New profile created:", newProfile);
             setUserProfile(newProfile);
-            setLoading(false); // Set loading to false after we have the profile
-            return;
+            return newProfile;
           } else {
             throw error;
           }
         } else {
-          console.log("AuthContext: User profile fetched", { data });
+          console.log("AuthContext: User profile fetched", data);
           setUserProfile(data);
-          setLoading(false); // Set loading to false after we have the profile
-          return;
+          return data;
         }
       } catch (error) {
         console.error(`Error fetching user profile (retries left: ${retries}):`, error);
         retries--;
         
-        // If this is the last retry, show an error and set loading to false
+        // If this is the last retry, set loading to false
         if (retries === 0) {
           toast({
             title: "Error fetching profile",
@@ -187,13 +193,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             variant: "destructive",
           });
           setUserProfile(null);
-          setLoading(false); // Set loading to false even if there's an error
+          return null;
         } else {
           // Wait before retrying
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
     }
+    
+    return null;
   };
 
   const logout = async () => {

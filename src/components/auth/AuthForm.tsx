@@ -90,7 +90,12 @@ export function AuthForm() {
         });
         
         // Force a hard refresh of the page to completely reload the app
-        window.location.href = '/';
+        // Adding a delay to ensure the toast is visible
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 500);
+        
+        return; // Return early to prevent setLoading(false)
       } else {
         console.log("Attempting to sign up with email:", email);
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -121,10 +126,12 @@ export function AuthForm() {
             title: "Verification needed",
             description: "Please check your email to verify your account before logging in.",
           });
-          setLoading(false);
         } else {
           // Force a hard refresh of the page
-          window.location.href = '/';
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 500);
+          return; // Return early to prevent setLoading(false)
         }
       }
     } catch (error: any) {
@@ -134,8 +141,10 @@ export function AuthForm() {
         description: error.message || "An error occurred during authentication",
         variant: "destructive",
       });
-      setLoading(false); // Explicitly set loading to false on error
     }
+    
+    // Only set loading to false if we haven't redirected
+    setLoading(false);
   };
 
   return (
