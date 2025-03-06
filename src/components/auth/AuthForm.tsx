@@ -87,11 +87,11 @@ export function AuthForm() {
           description: "You have successfully signed in.",
         });
         
-        // Manually reload the page to ensure the auth context updates properly
-        // This helps resolve the stuck loading state issue
+        // Wait for a moment, then hard refresh the page to ensure
+        // auth state is completely reset and reloaded
         setTimeout(() => {
           window.location.href = '/';
-        }, 1000);
+        }, 1500);
       } else {
         console.log("Attempting to sign up with email:", email);
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -123,10 +123,10 @@ export function AuthForm() {
             description: "Please check your email to verify your account before logging in.",
           });
         } else {
-          // Manually reload the page to ensure the auth context updates properly
+          // Hard refresh the page to ensure the auth context updates properly
           setTimeout(() => {
             window.location.href = '/';
-          }, 1000);
+          }, 1500);
         }
       }
     } catch (error: any) {
@@ -136,11 +136,12 @@ export function AuthForm() {
         description: error.message,
         variant: "destructive",
       });
+      setLoading(false); // Explicitly set loading to false on error
     } finally {
-      // Ensure loading state always gets cleared
+      // Ensure loading state always gets cleared eventually, even if there's an issue
       setTimeout(() => {
         setLoading(false);
-      }, 500);
+      }, 2000);
     }
   };
 

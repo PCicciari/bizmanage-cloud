@@ -31,7 +31,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  // Check for both user and userProfile to ensure everything is loaded
+  // Only redirect if we're sure there's no user or profile
+  // AND we're not loading anymore
   if (!user || !userProfile) {
     console.log("Protected route: redirecting to login because no user or profile");
     return <Navigate to="/login" replace />;

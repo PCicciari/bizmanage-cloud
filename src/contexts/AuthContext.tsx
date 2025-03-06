@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -69,9 +70,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Fetch the user profile
         try {
           await fetchUserProfile(session.user.id);
+          setProfileLoaded(true);
         } catch (error) {
           console.error("Failed to fetch user profile during initialization:", error);
-          setLoading(false);
+          // Don't set loading to false here, otherwise it might cause redirect loops
+          // The timeout will eventually set loading to false if profile fetch repeatedly fails
         }
       } catch (error) {
         console.error("AuthContext: Error during initialization", error);
@@ -93,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("AuthContext: User signed out, clearing state");
         setUser(null);
         setUserProfile(null);
+        setProfileLoaded(false);
         setLoading(false);
         return;
       }
@@ -101,13 +105,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session.user);
         try {
           await fetchUserProfile(session.user.id);
+          setProfileLoaded(true);
         } catch (error) {
           console.error("Failed to fetch user profile after auth state change:", error);
-          setLoading(false);
+          // Don't set loading to false here to prevent redirect loops
         }
       } else {
         setUser(null);
         setUserProfile(null);
+        setProfileLoaded(false);
         setLoading(false);
       }
     });
@@ -120,58 +126,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserProfile = async (userId: string) => {
     console.log("AuthContext: Attempting to fetch user profile for", userId);
-    try {
-      // First, ensure the user_profiles table exists
-      const { error: createTableError } = await supabase.rpc('create_user_profiles_if_not_exists');
-      if (createTableError) {
-        console.error("Error creating table:", createTableError);
-      }
-      
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-
-      if (error) {
-        console.log("Profile fetch error:", error.message, error.code);
-        // If there's no profile, create a default one
-        if (error.code === 'PGRST116') {
-          console.log("No profile found, creating default admin profile");
-          // Create a default admin profile if none exists
-          const { data: newProfile, error: createError } = await supabase
-            .from("user_profiles")
-            .insert([{ id: userId, role: "admin" }])
-            .select()
-            .single();
-            
-          if (createError) {
-            console.error("Error creating profile:", createError);
-            setLoading(false);
-            throw createError;
-          }
-          console.log("New profile created:", newProfile);
-          setUserProfile(newProfile);
-          setLoading(false); // Important: set loading to false after we have the profile
-        } else {
-          setLoading(false);
-          throw error;
+    let retries = 3;
+    
+    while (retries > 0) {
+      try {
+        // First, ensure the user_profiles table exists
+        const { error: createTableError } = await supabase.rpc('create_user_profiles_if_not_exists');
+        if (createTableError) {
+          console.error("Error creating table:", createTableError);
         }
-      } else {
-        console.log("AuthContext: User profile fetched", { data });
-        setUserProfile(data);
-        setLoading(false); // Important: set loading to false after we have the profile
+        
+        const { data, error } = await supabase
+          .from("user_profiles")
+          .select("*")
+          .eq("id", userId)
+          .single();
+
+        if (error) {
+          console.log("Profile fetch error:", error.message, error.code);
+          // If there's no profile, create a default one
+          if (error.code === 'PGRST116') {
+            console.log("No profile found, creating default admin profile");
+            // Create a default admin profile if none exists
+            const { data: newProfile, error: createError } = await supabase
+              .from("user_profiles")
+              .insert([{ id: userId, role: "admin" }])
+              .select()
+              .single();
+              
+            if (createError) {
+              console.error("Error creating profile:", createError);
+              throw createError;
+            }
+            console.log("New profile created:", newProfile);
+            setUserProfile(newProfile);
+            setLoading(false); // Important: set loading to false after we have the profile
+            return;
+          } else {
+            throw error;
+          }
+        } else {
+          console.log("AuthContext: User profile fetched", { data });
+          setUserProfile(data);
+          setLoading(false); // Important: set loading to false after we have the profile
+          return;
+        }
+      } catch (error) {
+        console.error(`Error fetching user profile (retries left: ${retries}):`, error);
+        retries--;
+        
+        // If this is the last retry, show an error and set loading to false
+        if (retries === 0) {
+          toast({
+            title: "Error fetching profile",
+            description: "Could not load your user profile. Please try logging in again.",
+            variant: "destructive",
+          });
+          // Don't automatically sign out as it can create loops
+          setUserProfile(null);
+          setLoading(false); // Important: set loading to false even if there's an error
+        } else {
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-      toast({
-        title: "Error fetching profile",
-        description: "Could not load your user profile. Please try logging in again.",
-        variant: "destructive",
-      });
-      // Don't automatically sign out as it can create loops
-      setUserProfile(null);
-      setLoading(false); // Important: set loading to false even if there's an error
     }
   };
 
@@ -184,6 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear user and userProfile state to trigger the redirect to login screen
       setUser(null);
       setUserProfile(null);
+      setProfileLoaded(false);
       
       toast({
         title: "Logged out successfully",
@@ -222,6 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user: user?.id, 
     userProfile: userProfile?.id,
     loading, 
+    profileLoaded,
     isAdmin, 
     isBranchManager 
   });
