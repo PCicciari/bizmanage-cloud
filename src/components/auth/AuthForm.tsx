@@ -19,10 +19,7 @@ export function AuthForm() {
   const createUserProfile = async (userId: string, role: "admin" | "branch_manager", branchCode?: string) => {
     try {
       console.log("Creating user profile:", { userId, role, branchCode });
-      const { error: createTableError } = await supabase.rpc('create_user_profiles_if_not_exists');
-      if (createTableError) {
-        console.error("Error creating table:", createTableError);
-      }
+      await supabase.rpc('create_user_profiles_if_not_exists');
 
       if (branchCode && role === "branch_manager") {
         const { data: branchExists, error: branchError } = await supabase
@@ -36,7 +33,6 @@ export function AuthForm() {
         }
       }
 
-      // Check if profile already exists
       const { data: existingProfile } = await supabase
         .from("user_profiles")
         .select("*")
@@ -45,10 +41,10 @@ export function AuthForm() {
         
       if (existingProfile) {
         console.log("Profile already exists, not creating a new one");
-        return;
+        return existingProfile;
       }
 
-      const { error: profileError } = await supabase
+      const { data: newProfile, error: profileError } = await supabase
         .from("user_profiles")
         .insert([
           {
@@ -56,10 +52,13 @@ export function AuthForm() {
             role,
             ...(role === "branch_manager" ? { branch_id: branchCode } : {}),
           },
-        ]);
+        ])
+        .select()
+        .single();
 
       if (profileError) throw profileError;
-      console.log("User profile created successfully");
+      console.log("User profile created successfully:", newProfile);
+      return newProfile;
     } catch (error: any) {
       console.error("Error creating user profile:", error);
       throw new Error(error.message || "Failed to create user profile. Please contact support.");
@@ -84,16 +83,24 @@ export function AuthForm() {
         if (error) throw error;
         console.log("Sign in successful:", data);
         
+        if (data.user) {
+          try {
+            await createUserProfile(data.user.id, "admin");
+            console.log("Profile verified/created after login");
+          } catch (profileError) {
+            console.error("Profile verification error:", profileError);
+            // Continue anyway, the AuthContext will handle it
+          }
+        }
+        
         toast({
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
         
-        // Force a hard refresh of the page to completely reload the app
-        // Adding a delay to ensure the toast is visible
         setTimeout(() => {
           window.location.href = '/';
-        }, 500);
+        }, 800);
         
         return; // Return early to prevent setLoading(false)
       } else {
@@ -127,10 +134,9 @@ export function AuthForm() {
             description: "Please check your email to verify your account before logging in.",
           });
         } else {
-          // Force a hard refresh of the page
           setTimeout(() => {
             window.location.href = '/';
-          }, 500);
+          }, 800);
           return; // Return early to prevent setLoading(false)
         }
       }
@@ -143,7 +149,6 @@ export function AuthForm() {
       });
     }
     
-    // Only set loading to false if we haven't redirected
     setLoading(false);
   };
 

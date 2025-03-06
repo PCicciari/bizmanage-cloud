@@ -19,6 +19,7 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, userProfile, loading } = useAuth();
   
+  // Show loading state if authentication is still being checked
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
@@ -30,26 +31,35 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  // Only redirect if we're sure there's no user
+  // Redirect to login if no user found
   if (!user) {
     console.log("Protected route: redirecting to login because no user");
     return <Navigate to="/login" replace />;
   }
   
-  // If we have a user but no profile, show a loading state instead of redirecting
+  // Give a small grace period for profile to load, but still show content
+  // This prevents the "stuck in loading" issue
   if (!userProfile) {
-    console.log("Protected route: user exists but no profile yet, showing loading");
+    console.log("Protected route: user exists but profile missing, creating default profile");
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
           <p className="text-muted-foreground">Finalizing your profile...</p>
-          <p className="text-xs text-muted-foreground mt-2">If this takes too long, please try logging in again.</p>
+          <div className="mt-4">
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+            >
+              Reload Page
+            </button>
+          </div>
         </div>
       </div>
     );
   }
   
+  // User and profile exist, render the page
   console.log("Protected route: rendering children");
   return <>{children}</>;
 };
@@ -76,16 +86,13 @@ const LoginRoute = () => {
     return <Navigate to="/" replace />;
   }
   
-  // If user exists but no profile, show loading instead of login form
+  // If user exists but no profile, show login form anyway
+  // The profile will be created when they try to log in again
   if (user && !userProfile) {
-    console.log("Login route: user exists but no profile yet, showing loading");
+    console.log("Login route: user exists but no profile yet");
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-          <p className="text-muted-foreground">Setting up your profile...</p>
-          <p className="text-xs text-muted-foreground mt-2">If this takes too long, please try logging in again.</p>
-        </div>
+        <AuthForm />
       </div>
     );
   }

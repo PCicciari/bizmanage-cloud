@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
@@ -70,14 +69,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isActive) setUser(session.user);
         
         // Fetch the user profile
-        try {
-          const profile = await fetchUserProfile(session.user.id);
-          if (isActive && profile) {
-            setUserProfile(profile);
+        if (session?.user?.id) {
+          try {
+            // Force create profile table if it doesn't exist
+            await supabase.rpc('create_user_profiles_if_not_exists');
+            
+            // Check if profile exists first
+            const { data: existingProfile, error: checkError } = await supabase
+              .from("user_profiles")
+              .select("*")
+              .eq("id", session.user.id)
+              .single();
+            
+            if (checkError && checkError.code !== 'PGRST116') {
+              // Real error, not just "no rows returned"
+              console.error("Error checking profile:", checkError);
+              throw checkError;
+            }
+            
+            // If no profile exists, create a default admin one
+            if (!existingProfile) {
+              console.log("No profile found, creating default admin profile");
+              const { data: newProfile, error: createError } = await supabase
+                .from("user_profiles")
+                .insert([{ id: session.user.id, role: "admin" }])
+                .select()
+                .single();
+                
+              if (createError) {
+                console.error("Error creating profile:", createError);
+                throw createError;
+              }
+              
+              if (isActive) {
+                console.log("New profile created:", newProfile);
+                setUserProfile(newProfile);
+                setLoading(false);
+              }
+            } else {
+              // Profile exists
+              if (isActive) {
+                console.log("Existing profile found:", existingProfile);
+                setUserProfile(existingProfile);
+                setLoading(false);
+              }
+            }
+          } catch (error) {
+            console.error("Profile processing error:", error);
+            if (isActive) setLoading(false);
           }
-        } catch (error) {
-          console.error("Failed to fetch user profile during initialization:", error);
-        } finally {
+        } else {
           if (isActive) setLoading(false);
         }
       } catch (error) {
@@ -110,14 +151,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (session?.user) {
         if (isActive) setUser(session.user);
-        try {
-          const profile = await fetchUserProfile(session.user.id);
-          if (isActive && profile) {
-            setUserProfile(profile);
+        
+        if (session.user.id) {
+          try {
+            // Force create profile table if it doesn't exist
+            await supabase.rpc('create_user_profiles_if_not_exists');
+            
+            // Check if profile exists
+            const { data: existingProfile, error: checkError } = await supabase
+              .from("user_profiles")
+              .select("*")
+              .eq("id", session.user.id)
+              .single();
+            
+            if (checkError && checkError.code !== 'PGRST116') {
+              // Real error, not just "no rows returned"
+              console.error("Error checking profile:", checkError);
+              throw checkError;
+            }
+            
+            // If no profile exists, create a default admin one
+            if (!existingProfile) {
+              console.log("No profile found after auth change, creating default");
+              const { data: newProfile, error: createError } = await supabase
+                .from("user_profiles")
+                .insert([{ id: session.user.id, role: "admin" }])
+                .select()
+                .single();
+                
+              if (createError) {
+                console.error("Error creating profile after auth change:", createError);
+                throw createError;
+              }
+              
+              if (isActive) {
+                console.log("New profile created after auth change:", newProfile);
+                setUserProfile(newProfile);
+                setLoading(false);
+              }
+            } else {
+              // Profile exists
+              if (isActive) {
+                console.log("Existing profile found after auth change:", existingProfile);
+                setUserProfile(existingProfile);
+                setLoading(false);
+              }
+            }
+          } catch (error) {
+            console.error("Profile processing error after auth change:", error);
+            if (isActive) setLoading(false);
           }
-        } catch (error) {
-          console.error("Failed to fetch user profile after auth state change:", error);
-        } finally {
+        } else {
           if (isActive) setLoading(false);
         }
       } else {
@@ -135,74 +219,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(loadingTimeout); // Clear the timeout on cleanup
     };
   }, []);
-
-  const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
-    console.log("AuthContext: Attempting to fetch user profile for", userId);
-    let retries = 3;
-    
-    while (retries > 0) {
-      try {
-        // First, ensure the user_profiles table exists
-        const { error: createTableError } = await supabase.rpc('create_user_profiles_if_not_exists');
-        if (createTableError) {
-          console.error("Error creating table:", createTableError);
-        }
-        
-        const { data, error } = await supabase
-          .from("user_profiles")
-          .select("*")
-          .eq("id", userId)
-          .single();
-
-        if (error) {
-          console.log("Profile fetch error:", error.message, error.code);
-          // If there's no profile, create a default one
-          if (error.code === 'PGRST116') {
-            console.log("No profile found, creating default admin profile");
-            // Create a default admin profile if none exists
-            const { data: newProfile, error: createError } = await supabase
-              .from("user_profiles")
-              .insert([{ id: userId, role: "admin" }])
-              .select()
-              .single();
-              
-            if (createError) {
-              console.error("Error creating profile:", createError);
-              throw createError;
-            }
-            console.log("New profile created:", newProfile);
-            setUserProfile(newProfile);
-            return newProfile;
-          } else {
-            throw error;
-          }
-        } else {
-          console.log("AuthContext: User profile fetched", data);
-          setUserProfile(data);
-          return data;
-        }
-      } catch (error) {
-        console.error(`Error fetching user profile (retries left: ${retries}):`, error);
-        retries--;
-        
-        // If this is the last retry, set loading to false
-        if (retries === 0) {
-          toast({
-            title: "Error fetching profile",
-            description: "Could not load your user profile. Please try logging in again.",
-            variant: "destructive",
-          });
-          setUserProfile(null);
-          return null;
-        } else {
-          // Wait before retrying
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-    }
-    
-    return null;
-  };
 
   const logout = async () => {
     try {
