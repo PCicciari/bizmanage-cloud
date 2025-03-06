@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -32,7 +31,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   // Only redirect if we're sure there's no user or profile
-  // AND we're not loading anymore
   if (!user || !userProfile) {
     console.log("Protected route: redirecting to login because no user or profile");
     return <Navigate to="/login" replace />;
@@ -46,6 +44,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const LoginRoute = () => {
   const { user, userProfile, loading } = useAuth();
   
+  // During loading, show a loading indicator
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
@@ -57,12 +56,13 @@ const LoginRoute = () => {
     );
   }
   
-  // Only redirect if both user and userProfile exist
+  // If user and profile exist, redirect to dashboard
   if (user && userProfile) {
     console.log("Login route: redirecting to dashboard because user and profile exist");
     return <Navigate to="/" replace />;
   }
   
+  // Otherwise show login form
   console.log("Login route: rendering login form");
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30">

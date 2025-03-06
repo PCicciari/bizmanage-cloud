@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +68,9 @@ export function AuthForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (loading) return; // Prevent multiple submissions
+    
     setLoading(true);
 
     try {
@@ -87,11 +89,8 @@ export function AuthForm() {
           description: "You have successfully signed in.",
         });
         
-        // Wait for a moment, then hard refresh the page to ensure
-        // auth state is completely reset and reloaded
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 1500);
+        // Force a hard refresh of the page to completely reload the app
+        window.location.href = '/';
       } else {
         console.log("Attempting to sign up with email:", email);
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -122,26 +121,20 @@ export function AuthForm() {
             title: "Verification needed",
             description: "Please check your email to verify your account before logging in.",
           });
+          setLoading(false);
         } else {
-          // Hard refresh the page to ensure the auth context updates properly
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 1500);
+          // Force a hard refresh of the page
+          window.location.href = '/';
         }
       }
     } catch (error: any) {
       console.error("Authentication error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An error occurred during authentication",
         variant: "destructive",
       });
       setLoading(false); // Explicitly set loading to false on error
-    } finally {
-      // Ensure loading state always gets cleared eventually, even if there's an issue
-      setTimeout(() => {
-        setLoading(false);
-      }, 2000);
     }
   };
 
@@ -217,8 +210,8 @@ export function AuthForm() {
           )}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? (
-              <div className="flex items-center space-x-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+              <div className="flex items-center justify-center w-full">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"></div>
                 <span>Please wait...</span>
               </div>
             ) : isLogin ? "Sign In" : "Sign Up"}

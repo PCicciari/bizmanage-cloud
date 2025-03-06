@@ -29,19 +29,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profileLoaded, setProfileLoaded] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     console.log("AuthContext: Initializing");
+    let isActive = true; // Track if component is mounted
     
-    // Add a timeout to prevent infinite loading
+    // Add a shorter timeout to prevent infinite loading
     const loadingTimeout = setTimeout(() => {
-      if (loading) {
+      if (loading && isActive) {
         console.log("AuthContext: Loading timeout reached, forcing loading state to false");
         setLoading(false);
       }
-    }, 10000); // 10 second timeout
+    }, 5000); // 5 second timeout (reduced from 10)
     
     const initializeAuth = async () => {
       try {
@@ -51,36 +51,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (sessionError) {
           console.error("Error retrieving session:", sessionError);
-          setLoading(false);
+          if (isActive) setLoading(false);
           return;
         }
         
         if (!session) {
           // No session, we're done
           console.log("AuthContext: No session found, setting loading to false");
-          setUser(null);
-          setUserProfile(null);
-          setLoading(false);
+          if (isActive) {
+            setUser(null);
+            setUserProfile(null);
+            setLoading(false);
+          }
           return;
         }
         
         // We have a session, set the user
-        setUser(session.user);
+        if (isActive) setUser(session.user);
         
         // Fetch the user profile
         try {
           await fetchUserProfile(session.user.id);
-          setProfileLoaded(true);
         } catch (error) {
           console.error("Failed to fetch user profile during initialization:", error);
-          // Don't set loading to false here, otherwise it might cause redirect loops
-          // The timeout will eventually set loading to false if profile fetch repeatedly fails
+          if (isActive) setLoading(false);
         }
       } catch (error) {
         console.error("AuthContext: Error during initialization", error);
-        setUser(null);
-        setUserProfile(null);
-        setLoading(false);
+        if (isActive) {
+          setUser(null);
+          setUserProfile(null);
+          setLoading(false);
+        }
       }
     };
 
@@ -94,31 +96,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === 'SIGNED_OUT') {
         // Clear all auth state on sign out
         console.log("AuthContext: User signed out, clearing state");
-        setUser(null);
-        setUserProfile(null);
-        setProfileLoaded(false);
-        setLoading(false);
+        if (isActive) {
+          setUser(null);
+          setUserProfile(null);
+          setLoading(false);
+        }
         return;
       }
       
       if (session?.user) {
-        setUser(session.user);
+        if (isActive) setUser(session.user);
         try {
           await fetchUserProfile(session.user.id);
-          setProfileLoaded(true);
         } catch (error) {
           console.error("Failed to fetch user profile after auth state change:", error);
-          // Don't set loading to false here to prevent redirect loops
+          if (isActive) setLoading(false);
         }
       } else {
-        setUser(null);
-        setUserProfile(null);
-        setProfileLoaded(false);
-        setLoading(false);
+        if (isActive) {
+          setUser(null);
+          setUserProfile(null);
+          setLoading(false);
+        }
       }
     });
 
     return () => {
+      isActive = false; // Mark component as unmounted
       subscription.unsubscribe();
       clearTimeout(loadingTimeout); // Clear the timeout on cleanup
     };
@@ -160,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
             console.log("New profile created:", newProfile);
             setUserProfile(newProfile);
-            setLoading(false); // Important: set loading to false after we have the profile
+            setLoading(false); // Set loading to false after we have the profile
             return;
           } else {
             throw error;
@@ -168,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           console.log("AuthContext: User profile fetched", { data });
           setUserProfile(data);
-          setLoading(false); // Important: set loading to false after we have the profile
+          setLoading(false); // Set loading to false after we have the profile
           return;
         }
       } catch (error) {
@@ -182,9 +186,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             description: "Could not load your user profile. Please try logging in again.",
             variant: "destructive",
           });
-          // Don't automatically sign out as it can create loops
           setUserProfile(null);
-          setLoading(false); // Important: set loading to false even if there's an error
+          setLoading(false); // Set loading to false even if there's an error
         } else {
           // Wait before retrying
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -199,17 +202,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Clear user and userProfile state to trigger the redirect to login screen
+      // Clear user and userProfile state
       setUser(null);
       setUserProfile(null);
-      setProfileLoaded(false);
       
       toast({
         title: "Logged out successfully",
         description: "You have been signed out of your account.",
       });
       
-      // The redirect to the login page will happen automatically thanks to the ProtectedRoute in App.tsx
+      // Force a page reload to clear any lingering state
+      window.location.href = '/login';
     } catch (error) {
       console.error("Error during logout:", error);
       toast({
@@ -241,7 +244,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user: user?.id, 
     userProfile: userProfile?.id,
     loading, 
-    profileLoaded,
     isAdmin, 
     isBranchManager 
   });
