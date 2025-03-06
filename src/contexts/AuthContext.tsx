@@ -67,7 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session.user);
         
         // Fetch the user profile
-        await fetchUserProfile(session.user.id);
+        try {
+          await fetchUserProfile(session.user.id);
+        } catch (error) {
+          console.error("Failed to fetch user profile during initialization:", error);
+          setLoading(false);
+        }
       } catch (error) {
         console.error("AuthContext: Error during initialization", error);
         setUser(null);
@@ -94,7 +99,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (session?.user) {
         setUser(session.user);
-        await fetchUserProfile(session.user.id);
+        try {
+          await fetchUserProfile(session.user.id);
+        } catch (error) {
+          console.error("Failed to fetch user profile after auth state change:", error);
+          setLoading(false);
+        }
       } else {
         setUser(null);
         setUserProfile(null);
@@ -142,6 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           console.log("New profile created:", newProfile);
           setUserProfile(newProfile);
+          setLoading(false); // Important: set loading to false after we have the profile
         } else {
           setLoading(false);
           throw error;
@@ -149,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         console.log("AuthContext: User profile fetched", { data });
         setUserProfile(data);
+        setLoading(false); // Important: set loading to false after we have the profile
       }
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -159,9 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       // Don't automatically sign out as it can create loops
       setUserProfile(null);
-    } finally {
-      setLoading(false);
-      console.log("AuthContext: Profile fetch complete, loading set to false");
+      setLoading(false); // Important: set loading to false even if there's an error
     }
   };
 

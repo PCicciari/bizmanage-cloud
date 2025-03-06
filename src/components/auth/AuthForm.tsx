@@ -7,7 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -88,7 +87,11 @@ export function AuthForm() {
           description: "You have successfully signed in.",
         });
         
-        // Navigation will happen automatically through the protected route
+        // Manually reload the page to ensure the auth context updates properly
+        // This helps resolve the stuck loading state issue
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
       } else {
         console.log("Attempting to sign up with email:", email);
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -119,8 +122,12 @@ export function AuthForm() {
             title: "Verification needed",
             description: "Please check your email to verify your account before logging in.",
           });
+        } else {
+          // Manually reload the page to ensure the auth context updates properly
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1000);
         }
-        // Navigation will happen automatically through the protected route
       }
     } catch (error: any) {
       console.error("Authentication error:", error);
@@ -154,6 +161,7 @@ export function AuthForm() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full"
               disabled={loading}
+              required
             />
           </div>
           <div className="space-y-2">
@@ -164,6 +172,7 @@ export function AuthForm() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full"
               disabled={loading}
+              required
             />
           </div>
           {!isLogin && (
