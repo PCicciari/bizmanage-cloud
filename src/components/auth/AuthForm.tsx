@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,6 +17,7 @@ export function AuthForm() {
   const [branchCode, setBranchCode] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { forceReload } = useAuth();
 
   const createUserProfile = async (userId: string, role: "admin" | "branch_manager", branchCode?: string) => {
     try {
@@ -33,7 +36,8 @@ export function AuthForm() {
         }
       }
 
-      const { data: existingProfile } = await supabase
+      // First check if profile already exists
+      const { data: existingProfile, error: checkError } = await supabase
         .from("user_profiles")
         .select("*")
         .eq("id", userId)
@@ -44,6 +48,7 @@ export function AuthForm() {
         return existingProfile;
       }
 
+      // If we get here, we need to create a new profile
       const { data: newProfile, error: profileError } = await supabase
         .from("user_profiles")
         .insert([
@@ -85,24 +90,35 @@ export function AuthForm() {
         
         if (data.user) {
           try {
+            // Ensure profile is created or fetched
             await createUserProfile(data.user.id, "admin");
             console.log("Profile verified/created after login");
+            
+            // Trigger a refresh in the auth context
+            forceReload();
+            
+            toast({
+              title: "Welcome back!",
+              description: "You have successfully signed in.",
+            });
+            
+            // Give a brief delay to allow the profile to load
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 300);
+            
           } catch (profileError) {
             console.error("Profile verification error:", profileError);
-            // Continue anyway, the AuthContext will handle it
+            toast({
+              title: "Error",
+              description: "There was a problem with your profile. Please try again.",
+              variant: "destructive",
+            });
+            setLoading(false);
           }
         }
         
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully signed in.",
-        });
-        
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 800);
-        
-        return; // Return early to prevent setLoading(false)
+        return; // Return early to prevent setLoading(false) at the end
       } else {
         console.log("Attempting to sign up with email:", email);
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -123,6 +139,9 @@ export function AuthForm() {
           role === "branch_manager" ? branchCode : undefined
         );
 
+        // Trigger a refresh in the auth context
+        forceReload();
+
         toast({
           title: "Account created!",
           description: "Please check your email to confirm your account.",
@@ -133,11 +152,12 @@ export function AuthForm() {
             title: "Verification needed",
             description: "Please check your email to verify your account before logging in.",
           });
+          setLoading(false);
         } else {
+          // Give a brief delay to allow the profile to load
           setTimeout(() => {
             window.location.href = '/';
-          }, 800);
-          return; // Return early to prevent setLoading(false)
+          }, 300);
         }
       }
     } catch (error: any) {
@@ -147,9 +167,8 @@ export function AuthForm() {
         description: error.message || "An error occurred during authentication",
         variant: "destructive",
       });
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (

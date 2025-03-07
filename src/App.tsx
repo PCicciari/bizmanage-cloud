@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,12 +13,13 @@ import NotFound from "./pages/NotFound";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 const queryClient = new QueryClient();
 
 // Create a protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, userProfile, loading } = useAuth();
+  const { user, userProfile, loading, forceReload } = useAuth();
   
   // Show loading state if authentication is still being checked
   if (loading) {
@@ -37,22 +39,40 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
   
-  // Give a small grace period for profile to load, but still show content
-  // This prevents the "stuck in loading" issue
+  // If user exists but profile is missing
   if (!userProfile) {
-    console.log("Protected route: user exists but profile missing, creating default profile");
+    console.log("Protected route: user exists but profile missing");
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
           <p className="text-muted-foreground">Finalizing your profile...</p>
-          <div className="mt-4">
-            <button 
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+          <div className="mt-4 flex flex-col space-y-2">
+            <p className="text-sm text-muted-foreground">
+              This is taking longer than expected.
+            </p>
+            <div className="flex space-x-2">
+              <Button 
+                onClick={forceReload}
+                variant="outline"
+                className="px-4 py-2 rounded-md"
+              >
+                Try Again
+              </Button>
+              <Button 
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
+              >
+                Reload Page
+              </Button>
+            </div>
+            <Button
+              onClick={() => window.location.href = '/login'}
+              variant="ghost"
+              className="text-sm text-muted-foreground hover:text-foreground"
             >
-              Reload Page
-            </button>
+              Return to Login
+            </Button>
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
@@ -12,6 +13,7 @@ interface AuthContextType {
   isBranchManager: boolean;
   branchId: string | null;
   logout: () => Promise<void>;
+  forceReload: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -22,23 +24,77 @@ const AuthContext = createContext<AuthContextType>({
   isBranchManager: false,
   branchId: null,
   logout: async () => {},
+  forceReload: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadCount, setLoadCount] = useState(0);
   const { toast } = useToast();
 
+  const forceReload = () => {
+    setLoadCount(prev => prev + 1);
+  };
+
+  // Function to create or fetch a user profile
+  const createOrFetchProfile = async (userId: string) => {
+    console.log(`Attempting to create or fetch profile for user ${userId}`);
+    
+    try {
+      // Force create profile table if it doesn't exist
+      await supabase.rpc('create_user_profiles_if_not_exists');
+      
+      // Check if profile exists
+      const { data: existingProfile, error: checkError } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      
+      if (checkError && checkError.code !== 'PGRST116') {
+        // Real error, not just "no rows returned"
+        console.error("Error checking profile:", checkError);
+        throw checkError;
+      }
+      
+      // If profile exists, return it
+      if (existingProfile) {
+        console.log("Existing profile found:", existingProfile);
+        return existingProfile;
+      }
+      
+      // Create a default admin profile
+      console.log("No profile found, creating default admin profile");
+      const { data: newProfile, error: createError } = await supabase
+        .from("user_profiles")
+        .insert([{ id: userId, role: "admin" }])
+        .select()
+        .single();
+        
+      if (createError) {
+        console.error("Error creating profile:", createError);
+        throw createError;
+      }
+      
+      console.log("New profile created:", newProfile);
+      return newProfile;
+    } catch (error) {
+      console.error("Profile processing error:", error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
-    console.log("AuthContext: Initializing");
+    console.log("AuthContext: Initializing (load count:", loadCount, ")");
     let isActive = true; // Track if component is mounted
     
     // Add a shorter timeout to prevent infinite loading
     const loadingTimeout = setTimeout(() => {
       if (loading && isActive) {
         console.log("AuthContext: Loading timeout reached, forcing loading state to false");
-        setLoading(false);
+        if (isActive) setLoading(false);
       }
     }, 5000); // 5 second timeout
     
@@ -68,51 +124,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // We have a session, set the user
         if (isActive) setUser(session.user);
         
-        // Fetch the user profile
+        // Fetch or create the user profile
         if (session?.user?.id) {
           try {
-            // Force create profile table if it doesn't exist
-            await supabase.rpc('create_user_profiles_if_not_exists');
+            const profile = await createOrFetchProfile(session.user.id);
             
-            // Check if profile exists first
-            const { data: existingProfile, error: checkError } = await supabase
-              .from("user_profiles")
-              .select("*")
-              .eq("id", session.user.id)
-              .single();
-            
-            if (checkError && checkError.code !== 'PGRST116') {
-              // Real error, not just "no rows returned"
-              console.error("Error checking profile:", checkError);
-              throw checkError;
-            }
-            
-            // If no profile exists, create a default admin one
-            if (!existingProfile) {
-              console.log("No profile found, creating default admin profile");
-              const { data: newProfile, error: createError } = await supabase
-                .from("user_profiles")
-                .insert([{ id: session.user.id, role: "admin" }])
-                .select()
-                .single();
-                
-              if (createError) {
-                console.error("Error creating profile:", createError);
-                throw createError;
-              }
-              
-              if (isActive) {
-                console.log("New profile created:", newProfile);
-                setUserProfile(newProfile);
-                setLoading(false);
-              }
-            } else {
-              // Profile exists
-              if (isActive) {
-                console.log("Existing profile found:", existingProfile);
-                setUserProfile(existingProfile);
-                setLoading(false);
-              }
+            if (isActive) {
+              setUserProfile(profile);
+              setLoading(false);
             }
           } catch (error) {
             console.error("Profile processing error:", error);
@@ -154,48 +173,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session.user.id) {
           try {
-            // Force create profile table if it doesn't exist
-            await supabase.rpc('create_user_profiles_if_not_exists');
+            const profile = await createOrFetchProfile(session.user.id);
             
-            // Check if profile exists
-            const { data: existingProfile, error: checkError } = await supabase
-              .from("user_profiles")
-              .select("*")
-              .eq("id", session.user.id)
-              .single();
-            
-            if (checkError && checkError.code !== 'PGRST116') {
-              // Real error, not just "no rows returned"
-              console.error("Error checking profile:", checkError);
-              throw checkError;
-            }
-            
-            // If no profile exists, create a default admin one
-            if (!existingProfile) {
-              console.log("No profile found after auth change, creating default");
-              const { data: newProfile, error: createError } = await supabase
-                .from("user_profiles")
-                .insert([{ id: session.user.id, role: "admin" }])
-                .select()
-                .single();
-                
-              if (createError) {
-                console.error("Error creating profile after auth change:", createError);
-                throw createError;
-              }
-              
-              if (isActive) {
-                console.log("New profile created after auth change:", newProfile);
-                setUserProfile(newProfile);
-                setLoading(false);
-              }
-            } else {
-              // Profile exists
-              if (isActive) {
-                console.log("Existing profile found after auth change:", existingProfile);
-                setUserProfile(existingProfile);
-                setLoading(false);
-              }
+            if (isActive) {
+              setUserProfile(profile);
+              setLoading(false);
             }
           } catch (error) {
             console.error("Profile processing error after auth change:", error);
@@ -215,10 +197,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       isActive = false; // Mark component as unmounted
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
       clearTimeout(loadingTimeout); // Clear the timeout on cleanup
     };
-  }, []);
+  }, [loadCount]); // Add loadCount as a dependency to force re-initialization
 
   const logout = async () => {
     try {
@@ -262,6 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isBranchManager,
     branchId,
     logout,
+    forceReload,
   };
 
   console.log("AuthContext: Current state", { 
