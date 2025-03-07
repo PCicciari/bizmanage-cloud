@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -18,6 +19,7 @@ export function AuthForm() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { forceReload } = useAuth();
+  const navigate = useNavigate();
 
   const createUserProfile = async (userId: string, role: "admin" | "branch_manager", branchCode?: string) => {
     try {
@@ -102,8 +104,8 @@ export function AuthForm() {
         if (data.user) {
           try {
             // Ensure profile is created or fetched
-            await createUserProfile(data.user.id, "admin");
-            console.log("Profile verified/created after login");
+            const profile = await createUserProfile(data.user.id, "admin");
+            console.log("Profile verified/created after login:", profile);
             
             // Trigger a refresh in the auth context
             forceReload();
@@ -114,7 +116,7 @@ export function AuthForm() {
             });
             
             // Navigate to dashboard
-            window.location.href = '/';
+            navigate("/");
           } catch (profileError) {
             console.error("Profile verification error:", profileError);
             toast({
@@ -139,11 +141,13 @@ export function AuthForm() {
           throw new Error("Failed to create user account.");
         }
 
-        await createUserProfile(
+        const profile = await createUserProfile(
           authData.user.id, 
           role, 
           role === "branch_manager" ? branchCode : undefined
         );
+        
+        console.log("Profile created for new user:", profile);
 
         // Trigger a refresh in the auth context
         forceReload();
@@ -161,7 +165,7 @@ export function AuthForm() {
           setLoading(false);
         } else {
           // Navigate to dashboard
-          window.location.href = '/';
+          navigate("/");
         }
       }
     } catch (error: any) {
