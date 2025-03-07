@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,14 +24,19 @@ export function AuthForm() {
     try {
       console.log("Creating user profile:", { userId, role, branchCode });
       
-      // Make sure user_profiles table exists
-      try {
-        await supabase.rpc('create_user_profiles_if_not_exists');
-      } catch (error) {
-        console.log("Error calling create_user_profiles_if_not_exists RPC (may not exist):", error);
-        // Continue anyway as the table might already exist
+      // First check if profile already exists
+      const { data: existingProfile, error: checkError } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      
+      if (!checkError && existingProfile) {
+        console.log("Profile already exists:", existingProfile);
+        return existingProfile;
       }
-
+      
+      // Branch code validation for branch managers
       if (branchCode && role === "branch_manager") {
         const { data: branchExists, error: branchError } = await supabase
           .from("branches")
@@ -45,28 +49,19 @@ export function AuthForm() {
         }
       }
 
-      // First check if profile already exists
-      const { data: existingProfile, error: checkError } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-        
-      if (existingProfile) {
-        console.log("Profile already exists, not creating a new one");
-        return existingProfile;
-      }
-
-      // If we get here, we need to create a new profile
+      // Create a new profile
+      const profileData = {
+        id: userId,
+        role,
+        ...(role === "branch_manager" && branchCode ? { branch_id: branchCode } : {}),
+        created_at: new Date().toISOString()
+      };
+      
+      console.log("Creating new profile with data:", profileData);
+      
       const { data: newProfile, error: profileError } = await supabase
         .from("user_profiles")
-        .insert([
-          {
-            id: userId,
-            role,
-            ...(role === "branch_manager" ? { branch_id: branchCode } : {}),
-          },
-        ])
+        .insert([profileData])
         .select()
         .single();
 
@@ -115,13 +110,15 @@ export function AuthForm() {
               description: "You have successfully signed in.",
             });
             
-            // Navigate to dashboard
-            navigate("/");
-          } catch (profileError) {
+            // Navigate to dashboard after a brief delay to ensure the context is updated
+            setTimeout(() => {
+              navigate("/");
+            }, 500);
+          } catch (profileError: any) {
             console.error("Profile verification error:", profileError);
             toast({
               title: "Error",
-              description: "There was a problem with your profile. Please try again.",
+              description: profileError.message || "There was a problem with your profile. Please try again.",
               variant: "destructive",
             });
             setLoading(false);
@@ -141,31 +138,43 @@ export function AuthForm() {
           throw new Error("Failed to create user account.");
         }
 
-        const profile = await createUserProfile(
-          authData.user.id, 
-          role, 
-          role === "branch_manager" ? branchCode : undefined
-        );
-        
-        console.log("Profile created for new user:", profile);
+        try {
+          const profile = await createUserProfile(
+            authData.user.id, 
+            role, 
+            role === "branch_manager" ? branchCode : undefined
+          );
+          
+          console.log("Profile created for new user:", profile);
 
-        // Trigger a refresh in the auth context
-        forceReload();
+          // Trigger a refresh in the auth context
+          forceReload();
 
-        toast({
-          title: "Account created!",
-          description: "Please check your email to confirm your account.",
-        });
-        
-        if (!authData.session) {
           toast({
-            title: "Verification needed",
-            description: "Please check your email to verify your account before logging in.",
+            title: "Account created!",
+            description: "Your account has been created successfully.",
+          });
+          
+          if (!authData.session) {
+            toast({
+              title: "Verification needed",
+              description: "Please check your email to verify your account before logging in.",
+            });
+            setLoading(false);
+          } else {
+            // Navigate to dashboard after a brief delay
+            setTimeout(() => {
+              navigate("/");
+            }, 500);
+          }
+        } catch (profileError: any) {
+          console.error("Error creating profile:", profileError);
+          toast({
+            title: "Error",
+            description: profileError.message || "There was a problem creating your profile. Please try again.",
+            variant: "destructive",
           });
           setLoading(false);
-        } else {
-          // Navigate to dashboard
-          navigate("/");
         }
       }
     } catch (error: any) {

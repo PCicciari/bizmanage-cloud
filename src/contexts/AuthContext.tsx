@@ -66,7 +66,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("No profile found, creating default admin profile");
       const { data: newProfile, error: createError } = await supabase
         .from("user_profiles")
-        .insert([{ id: userId, role: "admin" }])
+        .insert([{ 
+          id: userId, 
+          role: "admin",
+          created_at: new Date().toISOString()
+        }])
         .select()
         .single();
         
@@ -128,10 +132,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             if (isActive) {
               setUserProfile(profile);
+              console.log("User profile set successfully:", profile);
               setLoading(false);
             }
           } catch (error) {
             console.error("Profile processing error:", error);
+            toast({
+              title: "Error",
+              description: "Failed to load your profile. Please try again.",
+              variant: "destructive",
+            });
             if (isActive) setLoading(false);
           }
         } else {
@@ -174,10 +184,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             if (isActive) {
               setUserProfile(profile);
+              console.log("User profile updated after auth change:", profile);
               setLoading(false);
             }
           } catch (error) {
             console.error("Profile processing error after auth change:", error);
+            toast({
+              title: "Error",
+              description: "Failed to load your profile. Please try again.",
+              variant: "destructive",
+            });
             if (isActive) setLoading(false);
           }
         } else {

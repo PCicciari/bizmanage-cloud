@@ -12,7 +12,6 @@ import BranchesPage from "./pages/branches";
 import NotFound from "./pages/NotFound";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { useAuth } from "@/contexts/AuthContext";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 
 const queryClient = new QueryClient({
@@ -27,6 +26,12 @@ const queryClient = new QueryClient({
 // Create a protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, userProfile, loading, forceReload } = useAuth();
+  
+  console.log("ProtectedRoute: checking auth", { 
+    user: user?.id, 
+    userProfile: userProfile?.id, 
+    loading 
+  });
   
   // Show loading state if authentication is still being checked
   if (loading) {
@@ -68,6 +73,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Create a login route component that redirects if already logged in
 const LoginRoute = () => {
   const { user, userProfile, loading } = useAuth();
+  
+  console.log("LoginRoute: checking auth", { 
+    user: user?.id, 
+    userProfile: userProfile?.id, 
+    loading 
+  });
   
   // During loading, show a loading indicator
   if (loading) {
