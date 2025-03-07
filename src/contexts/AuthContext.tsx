@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
@@ -43,10 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log(`Attempting to create or fetch profile for user ${userId}`);
     
     try {
-      // Force create profile table if it doesn't exist
-      await supabase.rpc('create_user_profiles_if_not_exists');
-      
-      // Check if profile exists
+      // First, check if profile exists
       const { data: existingProfile, error: checkError } = await supabase
         .from("user_profiles")
         .select("*")
@@ -65,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return existingProfile;
       }
       
-      // Create a default admin profile
+      // No profile found, create a default admin profile
       console.log("No profile found, creating default admin profile");
       const { data: newProfile, error: createError } = await supabase
         .from("user_profiles")

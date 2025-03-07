@@ -22,7 +22,14 @@ export function AuthForm() {
   const createUserProfile = async (userId: string, role: "admin" | "branch_manager", branchCode?: string) => {
     try {
       console.log("Creating user profile:", { userId, role, branchCode });
-      await supabase.rpc('create_user_profiles_if_not_exists');
+      
+      // Make sure user_profiles table exists
+      try {
+        await supabase.rpc('create_user_profiles_if_not_exists');
+      } catch (error) {
+        console.log("Error calling create_user_profiles_if_not_exists RPC (may not exist):", error);
+        // Continue anyway as the table might already exist
+      }
 
       if (branchCode && role === "branch_manager") {
         const { data: branchExists, error: branchError } = await supabase
@@ -61,7 +68,11 @@ export function AuthForm() {
         .select()
         .single();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("Error creating profile:", profileError);
+        throw profileError;
+      }
+      
       console.log("User profile created successfully:", newProfile);
       return newProfile;
     } catch (error: any) {
@@ -102,11 +113,8 @@ export function AuthForm() {
               description: "You have successfully signed in.",
             });
             
-            // Give a brief delay to allow the profile to load
-            setTimeout(() => {
-              window.location.href = '/';
-            }, 300);
-            
+            // Navigate to dashboard
+            window.location.href = '/';
           } catch (profileError) {
             console.error("Profile verification error:", profileError);
             toast({
@@ -117,8 +125,6 @@ export function AuthForm() {
             setLoading(false);
           }
         }
-        
-        return; // Return early to prevent setLoading(false) at the end
       } else {
         console.log("Attempting to sign up with email:", email);
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -154,10 +160,8 @@ export function AuthForm() {
           });
           setLoading(false);
         } else {
-          // Give a brief delay to allow the profile to load
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 300);
+          // Navigate to dashboard
+          window.location.href = '/';
         }
       }
     } catch (error: any) {
