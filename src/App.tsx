@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -39,44 +38,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
   
-  // If user exists but profile is missing
+  // If user exists but profile is missing, redirect to login
   if (!userProfile) {
-    console.log("Protected route: user exists but profile missing");
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-          <p className="text-muted-foreground">Finalizing your profile...</p>
-          <div className="mt-4 flex flex-col space-y-2">
-            <p className="text-sm text-muted-foreground">
-              This is taking longer than expected.
-            </p>
-            <div className="flex space-x-2">
-              <Button 
-                onClick={forceReload}
-                variant="outline"
-                className="px-4 py-2 rounded-md"
-              >
-                Try Again
-              </Button>
-              <Button 
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
-              >
-                Reload Page
-              </Button>
-            </div>
-            <Button
-              onClick={() => window.location.href = '/login'}
-              variant="ghost"
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              Return to Login
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
+    console.log("Protected route: user exists but profile missing, redirecting to login");
+    return <Navigate to="/login" replace />;
   }
   
   // User and profile exist, render the page
@@ -106,18 +71,7 @@ const LoginRoute = () => {
     return <Navigate to="/" replace />;
   }
   
-  // If user exists but no profile, show login form anyway
-  // The profile will be created when they try to log in again
-  if (user && !userProfile) {
-    console.log("Login route: user exists but no profile yet");
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <AuthForm />
-      </div>
-    );
-  }
-  
-  // Otherwise show login form
+  // Otherwise show login form (even if user exists but no profile)
   console.log("Login route: rendering login form");
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30">
