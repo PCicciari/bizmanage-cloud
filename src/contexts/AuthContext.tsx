@@ -132,6 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const profile = await createOrFetchProfile(session.user.id);
             
             if (isActive) {
+              console.log("Setting user profile:", profile);
               setUserProfile(profile);
               console.log("User profile set successfully:", profile);
             }
@@ -143,7 +144,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               variant: "destructive",
             });
           } finally {
-            if (isActive) setLoading(false);
+            if (isActive) {
+              console.log("Setting loading to false after profile fetch");
+              setLoading(false);
+            }
           }
         } else {
           if (isActive) setLoading(false);
@@ -177,6 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       if (session?.user) {
+        console.log("Setting user from auth state change:", session.user.id);
         if (isActive) setUser(session.user);
         
         if (session.user.id) {
@@ -184,9 +189,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const profile = await createOrFetchProfile(session.user.id);
             
             if (isActive) {
+              console.log("Setting user profile from auth state change:", profile);
               setUserProfile(profile);
               console.log("User profile updated after auth change:", profile);
-              setLoading(false); // Ensure loading is set to false after profile is set
             }
           } catch (error) {
             console.error("Profile processing error after auth change:", error);
@@ -195,7 +200,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               description: "Failed to load your profile. Please try again.",
               variant: "destructive",
             });
-            if (isActive) setLoading(false);
+          } finally {
+            if (isActive) {
+              console.log("Setting loading to false after auth state change");
+              setLoading(false);
+            }
           }
         } else {
           if (isActive) setLoading(false);

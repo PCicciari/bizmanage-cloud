@@ -98,33 +98,20 @@ export function AuthForm() {
         console.log("Sign in successful:", data);
         
         if (data.user) {
-          try {
-            // Ensure profile exists for this user
-            await createUserProfile(data.user.id, "admin");
-            console.log("Profile verified/created after login");
-            
-            // Trigger a refresh in the auth context
-            forceReload();
-            
-            toast({
-              title: "Welcome back!",
-              description: "You have successfully signed in.",
-            });
-            
-            // Navigate to dashboard and ensure loading state is reset
-            setLoading(false);
-            setTimeout(() => {
-              navigate("/");
-            }, 500); // Short delay to allow context to update
-          } catch (profileError: any) {
-            console.error("Profile verification error:", profileError);
-            toast({
-              title: "Error",
-              description: profileError.message || "There was a problem with your profile. Please try again.",
-              variant: "destructive",
-            });
-            setLoading(false);
-          }
+          // Successful login - trigger a reload and navigate to dashboard
+          toast({
+            title: "Welcome back!",
+            description: "You have successfully signed in.",
+          });
+          
+          // Force a reload of the auth context
+          forceReload();
+          
+          // Wait a bit to ensure context updates, then navigate
+          setTimeout(() => {
+            console.log("Navigating to dashboard after login");
+            navigate("/");
+          }, 1000); // Longer delay to ensure context is updated
         }
       } else {
         console.log("Attempting to sign up with email:", email);
@@ -150,9 +137,7 @@ export function AuthForm() {
           
           console.log("Profile created for new user");
 
-          // Trigger a refresh in the auth context
-          forceReload();
-
+          // Show success message
           toast({
             title: "Account created!",
             description: "Your account has been created successfully.",
@@ -163,13 +148,15 @@ export function AuthForm() {
               title: "Verification needed",
               description: "Please check your email to verify your account before logging in.",
             });
-            setLoading(false);
           } else {
-            // Navigate to dashboard if session exists
-            setLoading(false);
+            // Force a reload of the auth context
+            forceReload();
+            
+            // Wait a bit to ensure context updates, then navigate
             setTimeout(() => {
+              console.log("Navigating to dashboard after signup");
               navigate("/");
-            }, 500); // Short delay to allow context to update
+            }, 1000); // Longer delay to ensure context is updated
           }
         } catch (profileError: any) {
           console.error("Error creating profile:", profileError);
@@ -178,7 +165,6 @@ export function AuthForm() {
             description: profileError.message || "There was a problem creating your profile. Please try again.",
             variant: "destructive",
           });
-          setLoading(false);
         }
       }
     } catch (error: any) {
@@ -188,6 +174,7 @@ export function AuthForm() {
         description: error.message || "An error occurred during authentication",
         variant: "destructive",
       });
+    } finally {
       setLoading(false);
     }
   };
