@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("AuthContext: Initializing (load count:", loadCount, ")");
     let isActive = true; // Track if component is mounted
     
-    // Add a shorter timeout to prevent infinite loading
+    // Shorter timeout to prevent infinite loading
     const loadingTimeout = setTimeout(() => {
       if (loading && isActive) {
         console.log("AuthContext: Loading timeout reached, forcing loading state to false");
@@ -186,6 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (isActive) {
               setUserProfile(profile);
               console.log("User profile updated after auth change:", profile);
+              setLoading(false); // Ensure loading is set to false after profile is set
             }
           } catch (error) {
             console.error("Profile processing error after auth change:", error);
@@ -194,7 +195,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               description: "Failed to load your profile. Please try again.",
               variant: "destructive",
             });
-          } finally {
             if (isActive) setLoading(false);
           }
         } else {

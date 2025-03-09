@@ -113,7 +113,9 @@ export function AuthForm() {
             
             // Navigate to dashboard and ensure loading state is reset
             setLoading(false);
-            navigate("/");
+            setTimeout(() => {
+              navigate("/");
+            }, 500); // Short delay to allow context to update
           } catch (profileError: any) {
             console.error("Profile verification error:", profileError);
             toast({
@@ -163,9 +165,11 @@ export function AuthForm() {
             });
             setLoading(false);
           } else {
-            // Navigate to dashboard if session exists and ensure loading state is reset
+            // Navigate to dashboard if session exists
             setLoading(false);
-            navigate("/");
+            setTimeout(() => {
+              navigate("/");
+            }, 500); // Short delay to allow context to update
           }
         } catch (profileError: any) {
           console.error("Error creating profile:", profileError);
