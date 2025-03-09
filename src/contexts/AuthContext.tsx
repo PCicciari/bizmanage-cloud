@@ -51,37 +51,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq("id", userId)
         .single();
       
-      if (checkError && checkError.code !== 'PGRST116') {
-        // Real error, not just "no rows returned"
-        console.error("Error checking profile:", checkError);
-        throw checkError;
+      if (checkError) {
+        if (checkError.code === 'PGRST116') {
+          // No rows returned - need to create profile
+          console.log("No profile found, creating default admin profile");
+          const { data: newProfile, error: createError } = await supabase
+            .from("user_profiles")
+            .insert([{ 
+              id: userId, 
+              role: "admin",
+              created_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+            
+          if (createError) {
+            console.error("Error creating profile:", createError);
+            throw createError;
+          }
+          
+          console.log("New profile created:", newProfile);
+          return newProfile;
+        } else {
+          // Real error, not just "no rows returned"
+          console.error("Error checking profile:", checkError);
+          throw checkError;
+        }
       }
       
       // If profile exists, return it
-      if (existingProfile) {
-        console.log("Existing profile found:", existingProfile);
-        return existingProfile;
-      }
-      
-      // No profile found, create a default admin profile
-      console.log("No profile found, creating default admin profile");
-      const { data: newProfile, error: createError } = await supabase
-        .from("user_profiles")
-        .insert([{ 
-          id: userId, 
-          role: "admin",
-          created_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
-        
-      if (createError) {
-        console.error("Error creating profile:", createError);
-        throw createError;
-      }
-      
-      console.log("New profile created:", newProfile);
-      return newProfile;
+      console.log("Existing profile found:", existingProfile);
+      return existingProfile;
     } catch (error) {
       console.error("Profile processing error:", error);
       throw error;
@@ -134,7 +134,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (isActive) {
               setUserProfile(profile);
               console.log("User profile set successfully:", profile);
-              setLoading(false);
             }
           } catch (error) {
             console.error("Profile processing error:", error);
@@ -143,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               description: "Failed to load your profile. Please try again.",
               variant: "destructive",
             });
+          } finally {
             if (isActive) setLoading(false);
           }
         } else {
@@ -186,7 +186,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (isActive) {
               setUserProfile(profile);
               console.log("User profile updated after auth change:", profile);
-              setLoading(false);
             }
           } catch (error) {
             console.error("Profile processing error after auth change:", error);
@@ -195,6 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               description: "Failed to load your profile. Please try again.",
               variant: "destructive",
             });
+          } finally {
             if (isActive) setLoading(false);
           }
         } else {

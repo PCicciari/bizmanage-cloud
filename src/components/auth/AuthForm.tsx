@@ -100,8 +100,8 @@ export function AuthForm() {
         if (data.user) {
           try {
             // Ensure profile exists for this user
-            const profile = await createUserProfile(data.user.id, "admin");
-            console.log("Profile verified/created after login:", profile);
+            await createUserProfile(data.user.id, "admin");
+            console.log("Profile verified/created after login");
             
             // Trigger a refresh in the auth context
             forceReload();
@@ -111,7 +111,8 @@ export function AuthForm() {
               description: "You have successfully signed in.",
             });
             
-            // Navigate to dashboard
+            // Navigate to dashboard and ensure loading state is reset
+            setLoading(false);
             navigate("/");
           } catch (profileError: any) {
             console.error("Profile verification error:", profileError);
@@ -120,6 +121,7 @@ export function AuthForm() {
               description: profileError.message || "There was a problem with your profile. Please try again.",
               variant: "destructive",
             });
+            setLoading(false);
           }
         }
       } else {
@@ -138,13 +140,13 @@ export function AuthForm() {
 
         try {
           // Create profile for the new user
-          const profile = await createUserProfile(
+          await createUserProfile(
             authData.user.id, 
             role, 
             role === "branch_manager" ? branchCode : undefined
           );
           
-          console.log("Profile created for new user:", profile);
+          console.log("Profile created for new user");
 
           // Trigger a refresh in the auth context
           forceReload();
@@ -159,8 +161,10 @@ export function AuthForm() {
               title: "Verification needed",
               description: "Please check your email to verify your account before logging in.",
             });
+            setLoading(false);
           } else {
-            // Navigate to dashboard if session exists
+            // Navigate to dashboard if session exists and ensure loading state is reset
+            setLoading(false);
             navigate("/");
           }
         } catch (profileError: any) {
@@ -170,6 +174,7 @@ export function AuthForm() {
             description: profileError.message || "There was a problem creating your profile. Please try again.",
             variant: "destructive",
           });
+          setLoading(false);
         }
       }
     } catch (error: any) {
@@ -179,7 +184,6 @@ export function AuthForm() {
         description: error.message || "An error occurred during authentication",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   };
