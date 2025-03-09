@@ -98,7 +98,7 @@ export function AuthForm() {
         console.log("Sign in successful:", data);
         
         if (data.user) {
-          // Successful login - trigger a reload and navigate to dashboard
+          // Wait for the profile to be fetched by the auth context
           toast({
             title: "Welcome back!",
             description: "You have successfully signed in.",
@@ -107,11 +107,11 @@ export function AuthForm() {
           // Force a reload of the auth context
           forceReload();
           
-          // Wait a bit to ensure context updates, then navigate
+          // Redirect with a delay to ensure context is updated
           setTimeout(() => {
             console.log("Navigating to dashboard after login");
-            navigate("/");
-          }, 1000); // Longer delay to ensure context is updated
+            window.location.href = "/"; // Using direct navigation to ensure fresh state
+          }, 1500);
         }
       } else {
         console.log("Attempting to sign up with email:", email);
@@ -148,15 +148,16 @@ export function AuthForm() {
               title: "Verification needed",
               description: "Please check your email to verify your account before logging in.",
             });
+            setIsLogin(true); // Switch back to login form
           } else {
             // Force a reload of the auth context
             forceReload();
             
-            // Wait a bit to ensure context updates, then navigate
+            // Redirect with a delay to ensure context is updated
             setTimeout(() => {
               console.log("Navigating to dashboard after signup");
-              navigate("/");
-            }, 1000); // Longer delay to ensure context is updated
+              window.location.href = "/"; // Using direct navigation to ensure fresh state
+            }, 1500);
           }
         } catch (profileError: any) {
           console.error("Error creating profile:", profileError);

@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
           if (createError) {
             console.error("Error creating profile:", createError);
-            throw createError;
+            return null; // Return null instead of throwing to prevent infinite loop
           }
           
           console.log("New profile created:", newProfile);
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           // Real error, not just "no rows returned"
           console.error("Error checking profile:", checkError);
-          throw checkError;
+          return null; // Return null instead of throwing to prevent infinite loop
         }
       }
       
@@ -84,13 +84,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return existingProfile;
     } catch (error) {
       console.error("Profile processing error:", error);
-      throw error;
+      return null; // Return null instead of throwing to prevent infinite loop
     }
   };
 
   useEffect(() => {
     console.log("AuthContext: Initializing (load count:", loadCount, ")");
     let isActive = true; // Track if component is mounted
+    
+    // Set initial loading state
+    setLoading(true);
     
     // Shorter timeout to prevent infinite loading
     const loadingTimeout = setTimeout(() => {
@@ -134,19 +137,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (isActive) {
               console.log("Setting user profile:", profile);
               setUserProfile(profile);
+              setLoading(false); // Set loading to false after profile is set
               console.log("User profile set successfully:", profile);
             }
           } catch (error) {
             console.error("Profile processing error:", error);
-            toast({
-              title: "Error",
-              description: "Failed to load your profile. Please try again.",
-              variant: "destructive",
-            });
-          } finally {
             if (isActive) {
-              console.log("Setting loading to false after profile fetch");
-              setLoading(false);
+              toast({
+                title: "Error",
+                description: "Failed to load your profile. Please try again.",
+                variant: "destructive",
+              });
+              setLoading(false); // Set loading to false even if there's an error
             }
           }
         } else {
@@ -180,7 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      if (session?.user) {
+      if (event === 'SIGNED_IN' && session?.user) {
         console.log("Setting user from auth state change:", session.user.id);
         if (isActive) setUser(session.user);
         
@@ -191,29 +193,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (isActive) {
               console.log("Setting user profile from auth state change:", profile);
               setUserProfile(profile);
+              setLoading(false); // Set loading to false after profile is set
               console.log("User profile updated after auth change:", profile);
             }
           } catch (error) {
             console.error("Profile processing error after auth change:", error);
-            toast({
-              title: "Error",
-              description: "Failed to load your profile. Please try again.",
-              variant: "destructive",
-            });
-          } finally {
             if (isActive) {
-              console.log("Setting loading to false after auth state change");
-              setLoading(false);
+              toast({
+                title: "Error",
+                description: "Failed to load your profile. Please try again.",
+                variant: "destructive",
+              });
+              setLoading(false); // Set loading to false even if there's an error
             }
           }
         } else {
           if (isActive) setLoading(false);
-        }
-      } else {
-        if (isActive) {
-          setUser(null);
-          setUserProfile(null);
-          setLoading(false);
         }
       }
     });

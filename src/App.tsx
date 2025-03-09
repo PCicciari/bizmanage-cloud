@@ -59,10 +59,27 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
   
-  // If user exists but profile is missing, redirect to login
+  // If user exists but profile is missing, force reload to try getting the profile again
   if (!userProfile) {
-    console.log("Protected route: user exists but profile missing, redirecting to login");
-    return <Navigate to="/login" replace />;
+    console.log("Protected route: user exists but profile missing, forcing reload");
+    forceReload();
+    
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+          <p className="text-muted-foreground">Loading your profile...</p>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="mt-4"
+            onClick={() => forceReload()}
+          >
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
   }
   
   // User and profile exist, render the page
