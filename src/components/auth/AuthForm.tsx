@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +7,6 @@ import { supabase } from "@/lib/supabase";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -19,7 +17,6 @@ export function AuthForm() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { forceReload } = useAuth();
-  const navigate = useNavigate();
 
   const createUserProfile = async (userId: string, role: "admin" | "branch_manager", branchCode?: string) => {
     try {
@@ -98,7 +95,6 @@ export function AuthForm() {
         console.log("Sign in successful:", data);
         
         if (data.user) {
-          // Wait for the profile to be fetched by the auth context
           toast({
             title: "Welcome back!",
             description: "You have successfully signed in.",
@@ -107,11 +103,11 @@ export function AuthForm() {
           // Force a reload of the auth context
           forceReload();
           
-          // Redirect with a delay to ensure context is updated
+          // Redirect with an adequate delay to ensure context is updated
           setTimeout(() => {
             console.log("Navigating to dashboard after login");
-            window.location.href = "/"; // Using direct navigation to ensure fresh state
-          }, 1500);
+            window.location.href = "/";
+          }, 1000); // 1 second delay
         }
       } else {
         console.log("Attempting to sign up with email:", email);
@@ -156,8 +152,8 @@ export function AuthForm() {
             // Redirect with a delay to ensure context is updated
             setTimeout(() => {
               console.log("Navigating to dashboard after signup");
-              window.location.href = "/"; // Using direct navigation to ensure fresh state
-            }, 1500);
+              window.location.href = "/";
+            }, 1000); // 1 second delay
           }
         } catch (profileError: any) {
           console.error("Error creating profile:", profileError);

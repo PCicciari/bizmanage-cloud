@@ -39,8 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoadCount(prev => prev + 1);
   };
 
-  // Function to create or fetch a user profile
-  const createOrFetchProfile = async (userId: string) => {
+  // Function to create or fetch a user profile - simplified and fixed
+  const createOrFetchProfile = async (userId: string): Promise<UserProfile | null> => {
     console.log(`Attempting to create or fetch profile for user ${userId}`);
     
     try {
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
           if (createError) {
             console.error("Error creating profile:", createError);
-            return null; // Return null instead of throwing to prevent infinite loop
+            return null;
           }
           
           console.log("New profile created:", newProfile);
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           // Real error, not just "no rows returned"
           console.error("Error checking profile:", checkError);
-          return null; // Return null instead of throwing to prevent infinite loop
+          return null;
         }
       }
       
@@ -84,41 +84,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return existingProfile;
     } catch (error) {
       console.error("Profile processing error:", error);
-      return null; // Return null instead of throwing to prevent infinite loop
+      return null;
     }
   };
 
   useEffect(() => {
     console.log("AuthContext: Initializing (load count:", loadCount, ")");
-    let isActive = true; // Track if component is mounted
+    let mounted = true;
     
     // Set initial loading state
     setLoading(true);
     
     // Shorter timeout to prevent infinite loading
     const loadingTimeout = setTimeout(() => {
-      if (loading && isActive) {
+      if (mounted && loading) {
         console.log("AuthContext: Loading timeout reached, forcing loading state to false");
-        if (isActive) setLoading(false);
+        setLoading(false);
       }
-    }, 5000); // 5 second timeout
+    }, 5000);
     
     const initializeAuth = async () => {
       try {
         // Check if there's an active session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        console.log("AuthContext: Session check", { session: session?.user?.id, error: sessionError?.message });
+        console.log("AuthContext: Session check", { 
+          session: session?.user?.id, 
+          error: sessionError?.message 
+        });
         
         if (sessionError) {
           console.error("Error retrieving session:", sessionError);
-          if (isActive) setLoading(false);
+          if (mounted) setLoading(false);
           return;
         }
         
         if (!session) {
           // No session, we're done
           console.log("AuthContext: No session found, setting loading to false");
-          if (isActive) {
+          if (mounted) {
             setUser(null);
             setUserProfile(null);
             setLoading(false);
@@ -127,36 +130,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         // We have a session, set the user
-        if (isActive) setUser(session.user);
+        if (mounted) setUser(session.user);
         
         // Fetch or create the user profile
         if (session?.user?.id) {
-          try {
-            const profile = await createOrFetchProfile(session.user.id);
-            
-            if (isActive) {
+          const profile = await createOrFetchProfile(session.user.id);
+          
+          if (mounted) {
+            if (profile) {
               console.log("Setting user profile:", profile);
               setUserProfile(profile);
-              setLoading(false); // Set loading to false after profile is set
-              console.log("User profile set successfully:", profile);
+            } else {
+              console.error("Failed to get or create profile");
             }
-          } catch (error) {
-            console.error("Profile processing error:", error);
-            if (isActive) {
-              toast({
-                title: "Error",
-                description: "Failed to load your profile. Please try again.",
-                variant: "destructive",
-              });
-              setLoading(false); // Set loading to false even if there's an error
-            }
+            setLoading(false);
           }
         } else {
-          if (isActive) setLoading(false);
+          if (mounted) setLoading(false);
         }
       } catch (error) {
         console.error("AuthContext: Error during initialization", error);
-        if (isActive) {
+        if (mounted) {
           setUser(null);
           setUserProfile(null);
           setLoading(false);
@@ -174,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === 'SIGNED_OUT') {
         // Clear all auth state on sign out
         console.log("AuthContext: User signed out, clearing state");
-        if (isActive) {
+        if (mounted) {
           setUser(null);
           setUserProfile(null);
           setLoading(false);
@@ -184,49 +178,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (event === 'SIGNED_IN' && session?.user) {
         console.log("Setting user from auth state change:", session.user.id);
-        if (isActive) setUser(session.user);
+        if (mounted) setUser(session.user);
         
         if (session.user.id) {
-          try {
-            const profile = await createOrFetchProfile(session.user.id);
-            
-            if (isActive) {
+          const profile = await createOrFetchProfile(session.user.id);
+          
+          if (mounted) {
+            if (profile) {
               console.log("Setting user profile from auth state change:", profile);
               setUserProfile(profile);
-              setLoading(false); // Set loading to false after profile is set
-              console.log("User profile updated after auth change:", profile);
+            } else {
+              console.error("Failed to get or create profile after auth state change");
             }
-          } catch (error) {
-            console.error("Profile processing error after auth change:", error);
-            if (isActive) {
-              toast({
-                title: "Error",
-                description: "Failed to load your profile. Please try again.",
-                variant: "destructive",
-              });
-              setLoading(false); // Set loading to false even if there's an error
-            }
+            setLoading(false);
           }
         } else {
-          if (isActive) setLoading(false);
+          if (mounted) setLoading(false);
         }
       }
     });
 
     return () => {
-      isActive = false; // Mark component as unmounted
+      mounted = false;
       subscription?.unsubscribe();
-      clearTimeout(loadingTimeout); // Clear the timeout on cleanup
+      clearTimeout(loadingTimeout);
     };
-  }, [loadCount]); // Add loadCount as a dependency to force re-initialization
+  }, [loadCount]);
 
   const logout = async () => {
     try {
-      setLoading(true); // Show loading state during logout
+      setLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Clear user and userProfile state
       setUser(null);
       setUserProfile(null);
       
@@ -235,7 +219,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: "You have been signed out of your account.",
       });
       
-      // Force a page reload to clear any lingering state
       window.location.href = '/login';
     } catch (error) {
       console.error("Error during logout:", error);
