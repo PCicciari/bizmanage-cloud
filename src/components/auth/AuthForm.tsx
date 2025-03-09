@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ export function AuthForm() {
 
   const createUserProfile = async (userId: string, role: "admin" | "branch_manager", branchCode?: string) => {
     try {
-      console.log("Creating user profile:", { userId, role, branchCode });
+      console.log("Creating/verifying user profile:", { userId, role, branchCode });
       
       // First check if profile already exists
       const { data: existingProfile, error: checkError } = await supabase
@@ -98,7 +99,7 @@ export function AuthForm() {
         
         if (data.user) {
           try {
-            // Ensure profile is created or fetched
+            // Ensure profile exists for this user
             const profile = await createUserProfile(data.user.id, "admin");
             console.log("Profile verified/created after login:", profile);
             
@@ -110,10 +111,8 @@ export function AuthForm() {
               description: "You have successfully signed in.",
             });
             
-            // Navigate to dashboard after a brief delay to ensure the context is updated
-            setTimeout(() => {
-              navigate("/");
-            }, 500);
+            // Navigate to dashboard
+            navigate("/");
           } catch (profileError: any) {
             console.error("Profile verification error:", profileError);
             toast({
@@ -121,7 +120,6 @@ export function AuthForm() {
               description: profileError.message || "There was a problem with your profile. Please try again.",
               variant: "destructive",
             });
-            setLoading(false);
           }
         }
       } else {
@@ -139,6 +137,7 @@ export function AuthForm() {
         }
 
         try {
+          // Create profile for the new user
           const profile = await createUserProfile(
             authData.user.id, 
             role, 
@@ -160,12 +159,9 @@ export function AuthForm() {
               title: "Verification needed",
               description: "Please check your email to verify your account before logging in.",
             });
-            setLoading(false);
           } else {
-            // Navigate to dashboard after a brief delay
-            setTimeout(() => {
-              navigate("/");
-            }, 500);
+            // Navigate to dashboard if session exists
+            navigate("/");
           }
         } catch (profileError: any) {
           console.error("Error creating profile:", profileError);
@@ -174,7 +170,6 @@ export function AuthForm() {
             description: profileError.message || "There was a problem creating your profile. Please try again.",
             variant: "destructive",
           });
-          setLoading(false);
         }
       }
     } catch (error: any) {
@@ -184,6 +179,7 @@ export function AuthForm() {
         description: error.message || "An error occurred during authentication",
         variant: "destructive",
       });
+    } finally {
       setLoading(false);
     }
   };

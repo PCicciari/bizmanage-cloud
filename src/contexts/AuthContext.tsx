@@ -35,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   const forceReload = () => {
+    console.log("Force reload triggered");
     setLoadCount(prev => prev + 1);
   };
 
