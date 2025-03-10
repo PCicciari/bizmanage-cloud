@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +27,7 @@ export function AuthForm() {
 
     try {
       if (isLogin) {
+        // Handle login
         console.log("Attempting to sign in with email:", email);
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
@@ -45,14 +45,9 @@ export function AuthForm() {
           
           // Force a reload of the auth context
           forceReload();
-          
-          // Redirect after successful login with a delay
-          setTimeout(() => {
-            console.log("Navigating to dashboard after login");
-            window.location.href = "/";
-          }, 1000); 
         }
       } else {
+        // Handle signup
         console.log("Attempting to sign up with email:", email);
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
@@ -101,12 +96,6 @@ export function AuthForm() {
           } else {
             // Force a reload of the auth context
             forceReload();
-            
-            // Redirect with a delay
-            setTimeout(() => {
-              console.log("Navigating to dashboard after signup");
-              window.location.href = "/";
-            }, 1000);
           }
         } catch (profileError: any) {
           console.error("Error creating profile:", profileError);

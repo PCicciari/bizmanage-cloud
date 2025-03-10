@@ -24,7 +24,7 @@ const queryClient = new QueryClient({
 
 // Create a protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, userProfile, loading, forceReload } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   
   console.log("ProtectedRoute: checking auth", { 
     user: user?.id, 
@@ -57,19 +57,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
         <div className="flex flex-col items-center max-w-md p-6 border border-muted rounded-xl shadow-sm">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
           <h3 className="text-xl font-medium mb-2">Profile Missing</h3>
           <p className="text-muted-foreground text-center mb-4">
             We couldn't load your user profile. This may happen if you're a new user or if there was an error.
           </p>
           <div className="flex flex-col gap-2">
-            <Button onClick={() => forceReload()}>
-              Retry
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => window.location.href = '/login'}
-            >
+            <Button onClick={() => window.location.href = '/login'}>
               Back to Login
             </Button>
           </div>
@@ -97,10 +90,7 @@ const LoginRoute = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-          <p className="text-muted-foreground">Checking authentication status...</p>
-        </div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-4"></div>
       </div>
     );
   }

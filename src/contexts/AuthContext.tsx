@@ -34,17 +34,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loadCount, setLoadCount] = useState(0);
   const { toast } = useToast();
 
+  // Function to force reload
   const forceReload = useCallback(() => {
     console.log("Force reload triggered");
+    setLoading(true);
     setLoadCount(prev => prev + 1);
   }, []);
 
   // Function to fetch user profile
   const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
-    console.log(`Fetching profile for user ${userId}`);
-    
     try {
-      // First, check if profile exists
+      console.log(`Fetching profile for user ${userId}`);
+      
+      // Query for user profile
       const { data: profile, error } = await supabase
         .from("user_profiles")
         .select("*")
@@ -52,10 +54,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
       
       if (error) {
-        if (error.code !== 'PGRST116') { // Not the "no rows returned" error
-          console.error("Error fetching profile:", error);
+        if (error.code === 'PGRST116') { // No rows returned
+          console.log("No profile found for user");
           return null;
         }
+        console.error("Error fetching profile:", error);
         return null;
       }
       
@@ -67,70 +70,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Function to create user profile
-  const createUserProfile = useCallback(async (userId: string, role: string = "admin"): Promise<UserProfile | null> => {
-    console.log(`Creating profile for user ${userId} with role ${role}`);
-    
-    try {
-      const profileData = {
-        id: userId,
-        role,
-        created_at: new Date().toISOString()
-      };
-      
-      const { data: newProfile, error } = await supabase
-        .from("user_profiles")
-        .insert([profileData])
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error creating profile:", error);
-        return null;
-      }
-      
-      console.log("User profile created successfully:", newProfile);
-      return newProfile;
-    } catch (error) {
-      console.error("Error in createUserProfile:", error);
-      return null;
-    }
-  }, []);
-
-  // Primary function to get or create user profile
-  const getOrCreateProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
-    // First try to fetch existing profile
-    let profile = await fetchUserProfile(userId);
-    
-    // If no profile exists, create one
-    if (!profile) {
-      console.log("No profile found, creating default profile");
-      profile = await createUserProfile(userId);
-    }
-    
-    return profile;
-  }, [fetchUserProfile, createUserProfile]);
-
   useEffect(() => {
     let mounted = true;
     console.log("AuthContext: Initializing (load count:", loadCount, ")");
     
-    // Set initial loading state
-    if (mounted) setLoading(true);
-    
     const initializeAuth = async () => {
       try {
-        // Check if there's an active session
+        // Get the current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
           console.error("Error retrieving session:", sessionError);
-          if (mounted) setLoading(false);
+          if (mounted) {
+            setUser(null);
+            setUserProfile(null);
+            setLoading(false);
+          }
           return;
         }
         
         if (!session) {
-          // No session, we're done
+          // No session, update state and exit
           console.log("AuthContext: No session found");
           if (mounted) {
             setUser(null);
@@ -140,22 +100,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         
-        // We have a session, set the user
+        // We have a session with a user
         console.log("Session found, user:", session.user.id);
         if (mounted) setUser(session.user);
         
-        // Get or create the user profile
+        // Get the user's profile if we have a user ID
         if (session?.user?.id) {
           try {
-            const profile = await getOrCreateProfile(session.user.id);
+            const profile = await fetchUserProfile(session.user.id);
             
             if (mounted) {
-              if (profile) {
-                console.log("Setting user profile:", profile);
-                setUserProfile(profile);
-              } else {
-                console.error("Failed to get or create profile");
-              }
+              setUserProfile(profile);
               setLoading(false);
             }
           } catch (profileError) {
@@ -175,18 +130,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Initialize auth immediately
+    // Initialize auth
     initializeAuth();
 
     // Set up auth state change listener
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("AuthContext: Auth state changed", { event, session: session?.user?.id });
       
       if (event === 'SIGNED_OUT') {
-        // Clear all auth state on sign out
-        console.log("AuthContext: User signed out, clearing state");
+        // Clear state on sign out
         if (mounted) {
           setUser(null);
           setUserProfile(null);
@@ -195,21 +147,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      if (event === 'SIGNED_IN' && session?.user) {
-        console.log("Setting user from auth state change:", session.user.id);
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+        // Set user from session
         if (mounted) setUser(session.user);
         
+        // Fetch profile for user
         if (session.user.id) {
           try {
-            const profile = await getOrCreateProfile(session.user.id);
+            const profile = await fetchUserProfile(session.user.id);
             
             if (mounted) {
-              if (profile) {
-                console.log("Setting user profile from auth state change:", profile);
-                setUserProfile(profile);
-              } else {
-                console.error("Failed to get or create profile after auth state change");
-              }
+              setUserProfile(profile);
               setLoading(false);
             }
           } catch (profileError) {
@@ -222,16 +170,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // Cleanup
     return () => {
       mounted = false;
       subscription?.unsubscribe();
     };
-  }, [loadCount, getOrCreateProfile]);
+  }, [loadCount, fetchUserProfile]);
 
+  // Logout function
   const logout = async () => {
     try {
       setLoading(true);
       const { error } = await supabase.auth.signOut();
+      
       if (error) throw error;
       
       setUser(null);
@@ -260,6 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isBranchManager = userProfile?.role === "branch_manager";
   const branchId = userProfile?.branch_id || null;
 
+  // Context value
   const value = {
     user,
     userProfile,
