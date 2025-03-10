@@ -19,64 +19,6 @@ export function AuthForm() {
   const { toast } = useToast();
   const { forceReload } = useAuth();
 
-  const createUserProfile = async (userId: string, role: "admin" | "branch_manager", branchCode?: string) => {
-    try {
-      console.log("Creating/verifying user profile:", { userId, role, branchCode });
-      
-      // First check if profile already exists
-      const { data: existingProfile, error: checkError } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-      
-      if (!checkError && existingProfile) {
-        console.log("Profile already exists:", existingProfile);
-        return existingProfile;
-      }
-      
-      // Branch code validation for branch managers
-      if (branchCode && role === "branch_manager") {
-        const { data: branchExists, error: branchError } = await supabase
-          .from("branches")
-          .select("branch_code")
-          .eq("branch_code", branchCode)
-          .single();
-
-        if (branchError || !branchExists) {
-          throw new Error("Invalid branch code. Please check and try again.");
-        }
-      }
-
-      // Create a new profile
-      const profileData = {
-        id: userId,
-        role,
-        ...(role === "branch_manager" && branchCode ? { branch_id: branchCode } : {}),
-        created_at: new Date().toISOString()
-      };
-      
-      console.log("Creating new profile with data:", profileData);
-      
-      const { data: newProfile, error: profileError } = await supabase
-        .from("user_profiles")
-        .insert([profileData])
-        .select()
-        .single();
-
-      if (profileError) {
-        console.error("Error creating profile:", profileError);
-        throw profileError;
-      }
-      
-      console.log("User profile created successfully:", newProfile);
-      return newProfile;
-    } catch (error: any) {
-      console.error("Error creating user profile:", error);
-      throw new Error(error.message || "Failed to create user profile. Please contact support.");
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -104,11 +46,11 @@ export function AuthForm() {
           // Force a reload of the auth context
           forceReload();
           
-          // Redirect with a delay to ensure context is updated
+          // Redirect after successful login with a delay
           setTimeout(() => {
             console.log("Navigating to dashboard after login");
             window.location.href = "/";
-          }, 1500); // 1.5 second delay to ensure profile is loaded
+          }, 1000); 
         }
       } else {
         console.log("Attempting to sign up with email:", email);
@@ -125,12 +67,22 @@ export function AuthForm() {
         }
 
         try {
-          // Create profile for the new user
-          await createUserProfile(
-            authData.user.id, 
-            role, 
-            role === "branch_manager" ? branchCode : undefined
-          );
+          // Create profile data for the new user
+          const profileData = {
+            id: authData.user.id,
+            role,
+            ...(role === "branch_manager" && branchCode ? { branch_id: branchCode } : {}),
+            created_at: new Date().toISOString()
+          };
+          
+          console.log("Creating user profile with data:", profileData);
+          
+          // Insert the profile
+          const { error: profileError } = await supabase
+            .from("user_profiles")
+            .insert([profileData]);
+
+          if (profileError) throw profileError;
           
           console.log("Profile created for new user");
 
@@ -150,11 +102,11 @@ export function AuthForm() {
             // Force a reload of the auth context
             forceReload();
             
-            // Redirect with a delay to ensure context is updated
+            // Redirect with a delay
             setTimeout(() => {
               console.log("Navigating to dashboard after signup");
               window.location.href = "/";
-            }, 1500); // 1.5 second delay to ensure profile is loaded
+            }, 1000);
           }
         } catch (profileError: any) {
           console.error("Error creating profile:", profileError);

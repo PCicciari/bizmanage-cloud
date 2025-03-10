@@ -1,5 +1,5 @@
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { UserProfile } from "@/types/database.types";
@@ -34,58 +34,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loadCount, setLoadCount] = useState(0);
   const { toast } = useToast();
 
-  const forceReload = () => {
+  const forceReload = useCallback(() => {
     console.log("Force reload triggered");
     setLoadCount(prev => prev + 1);
-  };
+  }, []);
 
-  // Function to create or fetch a user profile
-  const createOrFetchProfile = async (userId: string): Promise<UserProfile | null> => {
-    console.log(`Attempting to create or fetch profile for user ${userId}`);
+  // Function to fetch user profile
+  const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
+    console.log(`Fetching profile for user ${userId}`);
     
-    // First, check if profile exists
-    const { data: existingProfile, error: checkError } = await supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-    
-    if (checkError) {
-      if (checkError.code === 'PGRST116') {
-        // No rows returned - need to create profile
-        console.log("No profile found, creating default admin profile");
-        const { data: newProfile, error: createError } = await supabase
-          .from("user_profiles")
-          .insert([{ 
-            id: userId, 
-            role: "admin",
-            created_at: new Date().toISOString()
-          }])
-          .select()
-          .single();
-          
-        if (createError) {
-          console.error("Error creating profile:", createError);
+    try {
+      // First, check if profile exists
+      const { data: profile, error } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      
+      if (error) {
+        if (error.code !== 'PGRST116') { // Not the "no rows returned" error
+          console.error("Error fetching profile:", error);
           return null;
         }
-        
-        console.log("New profile created:", newProfile);
-        return newProfile;
-      } else {
-        // Real error, not just "no rows returned"
-        console.error("Error checking profile:", checkError);
         return null;
       }
+      
+      console.log("Profile fetched successfully:", profile);
+      return profile;
+    } catch (error) {
+      console.error("Error in fetchUserProfile:", error);
+      return null;
+    }
+  }, []);
+
+  // Function to create user profile
+  const createUserProfile = useCallback(async (userId: string, role: string = "admin"): Promise<UserProfile | null> => {
+    console.log(`Creating profile for user ${userId} with role ${role}`);
+    
+    try {
+      const profileData = {
+        id: userId,
+        role,
+        created_at: new Date().toISOString()
+      };
+      
+      const { data: newProfile, error } = await supabase
+        .from("user_profiles")
+        .insert([profileData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error creating profile:", error);
+        return null;
+      }
+      
+      console.log("User profile created successfully:", newProfile);
+      return newProfile;
+    } catch (error) {
+      console.error("Error in createUserProfile:", error);
+      return null;
+    }
+  }, []);
+
+  // Primary function to get or create user profile
+  const getOrCreateProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
+    // First try to fetch existing profile
+    let profile = await fetchUserProfile(userId);
+    
+    // If no profile exists, create one
+    if (!profile) {
+      console.log("No profile found, creating default profile");
+      profile = await createUserProfile(userId);
     }
     
-    // If profile exists, return it
-    console.log("Existing profile found:", existingProfile);
-    return existingProfile;
-  };
+    return profile;
+  }, [fetchUserProfile, createUserProfile]);
 
   useEffect(() => {
-    console.log("AuthContext: Initializing (load count:", loadCount, ")");
     let mounted = true;
+    console.log("AuthContext: Initializing (load count:", loadCount, ")");
     
     // Set initial loading state
     if (mounted) setLoading(true);
@@ -103,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (!session) {
           // No session, we're done
-          console.log("AuthContext: No session found, setting loading to false");
+          console.log("AuthContext: No session found");
           if (mounted) {
             setUser(null);
             setUserProfile(null);
@@ -113,12 +141,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         // We have a session, set the user
+        console.log("Session found, user:", session.user.id);
         if (mounted) setUser(session.user);
         
-        // Fetch or create the user profile
+        // Get or create the user profile
         if (session?.user?.id) {
           try {
-            const profile = await createOrFetchProfile(session.user.id);
+            const profile = await getOrCreateProfile(session.user.id);
             
             if (mounted) {
               if (profile) {
@@ -130,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setLoading(false);
             }
           } catch (profileError) {
-            console.error("Error in profile fetching:", profileError);
+            console.error("Error in profile handling:", profileError);
             if (mounted) setLoading(false);
           }
         } else {
@@ -172,7 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session.user.id) {
           try {
-            const profile = await createOrFetchProfile(session.user.id);
+            const profile = await getOrCreateProfile(session.user.id);
             
             if (mounted) {
               if (profile) {
@@ -193,20 +222,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Safety timeout to prevent infinite loading
-    const loadingTimeout = setTimeout(() => {
-      if (mounted && loading) {
-        console.warn("AuthContext: Loading timeout reached, forcing loading state to false");
-        setLoading(false);
-      }
-    }, 3000);
-
     return () => {
       mounted = false;
       subscription?.unsubscribe();
-      clearTimeout(loadingTimeout);
     };
-  }, [loadCount]);
+  }, [loadCount, getOrCreateProfile]);
 
   const logout = async () => {
     try {

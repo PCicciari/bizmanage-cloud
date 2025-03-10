@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,7 +12,6 @@ import NotFound from "./pages/NotFound";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,14 +39,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
           <p className="text-muted-foreground">Loading your profile...</p>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="mt-4"
-            onClick={() => forceReload()}
-          >
-            Retry
-          </Button>
         </div>
       </div>
     );
@@ -60,34 +50,29 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
   
-  // If user exists but profile is missing, try to reload once then show a more helpful UI
+  // If user exists but profile is missing, show a helpful UI
   if (!userProfile) {
-    console.log("Protected route: user exists but profile missing, forcing reload");
-    forceReload();
+    console.log("Protected route: user exists but profile missing");
     
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <div className="flex flex-col items-center max-w-md">
+        <div className="flex flex-col items-center max-w-md p-6 border border-muted rounded-xl shadow-sm">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-          <p className="text-muted-foreground text-center mb-2">Your profile is being loaded...</p>
-          <p className="text-xs text-muted-foreground text-center mb-4">
-            This may take a moment. If it continues, please try logging out and back in.
+          <h3 className="text-xl font-medium mb-2">Profile Missing</h3>
+          <p className="text-muted-foreground text-center mb-4">
+            We couldn't load your user profile. This may happen if you're a new user or if there was an error.
           </p>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="mb-2"
-            onClick={() => forceReload()}
-          >
-            Retry
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => window.location.href = '/login'}
-          >
-            Back to Login
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => forceReload()}>
+              Retry
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.href = '/login'}
+            >
+              Back to Login
+            </Button>
+          </div>
         </div>
       </div>
     );
