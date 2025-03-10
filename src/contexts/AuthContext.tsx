@@ -39,53 +39,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoadCount(prev => prev + 1);
   };
 
-  // Function to create or fetch a user profile - simplified and fixed
+  // Function to create or fetch a user profile
   const createOrFetchProfile = async (userId: string): Promise<UserProfile | null> => {
     console.log(`Attempting to create or fetch profile for user ${userId}`);
     
-    try {
-      // First, check if profile exists
-      const { data: existingProfile, error: checkError } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-      
-      if (checkError) {
-        if (checkError.code === 'PGRST116') {
-          // No rows returned - need to create profile
-          console.log("No profile found, creating default admin profile");
-          const { data: newProfile, error: createError } = await supabase
-            .from("user_profiles")
-            .insert([{ 
-              id: userId, 
-              role: "admin",
-              created_at: new Date().toISOString()
-            }])
-            .select()
-            .single();
-            
-          if (createError) {
-            console.error("Error creating profile:", createError);
-            return null;
-          }
+    // First, check if profile exists
+    const { data: existingProfile, error: checkError } = await supabase
+      .from("user_profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+    
+    if (checkError) {
+      if (checkError.code === 'PGRST116') {
+        // No rows returned - need to create profile
+        console.log("No profile found, creating default admin profile");
+        const { data: newProfile, error: createError } = await supabase
+          .from("user_profiles")
+          .insert([{ 
+            id: userId, 
+            role: "admin",
+            created_at: new Date().toISOString()
+          }])
+          .select()
+          .single();
           
-          console.log("New profile created:", newProfile);
-          return newProfile;
-        } else {
-          // Real error, not just "no rows returned"
-          console.error("Error checking profile:", checkError);
+        if (createError) {
+          console.error("Error creating profile:", createError);
           return null;
         }
+        
+        console.log("New profile created:", newProfile);
+        return newProfile;
+      } else {
+        // Real error, not just "no rows returned"
+        console.error("Error checking profile:", checkError);
+        return null;
       }
-      
-      // If profile exists, return it
-      console.log("Existing profile found:", existingProfile);
-      return existingProfile;
-    } catch (error) {
-      console.error("Profile processing error:", error);
-      return null;
     }
+    
+    // If profile exists, return it
+    console.log("Existing profile found:", existingProfile);
+    return existingProfile;
   };
 
   useEffect(() => {
@@ -93,24 +88,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
     
     // Set initial loading state
-    setLoading(true);
-    
-    // Shorter timeout to prevent infinite loading
-    const loadingTimeout = setTimeout(() => {
-      if (mounted && loading) {
-        console.log("AuthContext: Loading timeout reached, forcing loading state to false");
-        setLoading(false);
-      }
-    }, 5000);
+    if (mounted) setLoading(true);
     
     const initializeAuth = async () => {
       try {
         // Check if there's an active session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        console.log("AuthContext: Session check", { 
-          session: session?.user?.id, 
-          error: sessionError?.message 
-        });
         
         if (sessionError) {
           console.error("Error retrieving session:", sessionError);
@@ -134,16 +117,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Fetch or create the user profile
         if (session?.user?.id) {
-          const profile = await createOrFetchProfile(session.user.id);
-          
-          if (mounted) {
-            if (profile) {
-              console.log("Setting user profile:", profile);
-              setUserProfile(profile);
-            } else {
-              console.error("Failed to get or create profile");
+          try {
+            const profile = await createOrFetchProfile(session.user.id);
+            
+            if (mounted) {
+              if (profile) {
+                console.log("Setting user profile:", profile);
+                setUserProfile(profile);
+              } else {
+                console.error("Failed to get or create profile");
+              }
+              setLoading(false);
             }
-            setLoading(false);
+          } catch (profileError) {
+            console.error("Error in profile fetching:", profileError);
+            if (mounted) setLoading(false);
           }
         } else {
           if (mounted) setLoading(false);
@@ -158,8 +146,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    // Initialize auth immediately
     initializeAuth();
 
+    // Set up auth state change listener
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -181,22 +171,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mounted) setUser(session.user);
         
         if (session.user.id) {
-          const profile = await createOrFetchProfile(session.user.id);
-          
-          if (mounted) {
-            if (profile) {
-              console.log("Setting user profile from auth state change:", profile);
-              setUserProfile(profile);
-            } else {
-              console.error("Failed to get or create profile after auth state change");
+          try {
+            const profile = await createOrFetchProfile(session.user.id);
+            
+            if (mounted) {
+              if (profile) {
+                console.log("Setting user profile from auth state change:", profile);
+                setUserProfile(profile);
+              } else {
+                console.error("Failed to get or create profile after auth state change");
+              }
+              setLoading(false);
             }
-            setLoading(false);
+          } catch (profileError) {
+            console.error("Error in profile fetching during auth change:", profileError);
+            if (mounted) setLoading(false);
           }
         } else {
           if (mounted) setLoading(false);
         }
       }
     });
+
+    // Safety timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn("AuthContext: Loading timeout reached, forcing loading state to false");
+        setLoading(false);
+      }
+    }, 3000);
 
     return () => {
       mounted = false;
@@ -249,8 +252,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   console.log("AuthContext: Current state", { 
-    user: user?.id, 
-    userProfile: userProfile?.id,
+    userId: user?.id, 
+    userProfileId: userProfile?.id,
     loading, 
     isAdmin, 
     isBranchManager 

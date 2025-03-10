@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,11 +104,11 @@ export function AuthForm() {
           // Force a reload of the auth context
           forceReload();
           
-          // Redirect with an adequate delay to ensure context is updated
+          // Redirect with a delay to ensure context is updated
           setTimeout(() => {
             console.log("Navigating to dashboard after login");
             window.location.href = "/";
-          }, 1000); // 1 second delay
+          }, 1500); // 1.5 second delay to ensure profile is loaded
         }
       } else {
         console.log("Attempting to sign up with email:", email);
@@ -153,7 +154,7 @@ export function AuthForm() {
             setTimeout(() => {
               console.log("Navigating to dashboard after signup");
               window.location.href = "/";
-            }, 1000); // 1 second delay
+            }, 1500); // 1.5 second delay to ensure profile is loaded
           }
         } catch (profileError: any) {
           console.error("Error creating profile:", profileError);
